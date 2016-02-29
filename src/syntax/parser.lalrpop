@@ -1,0 +1,52 @@
+use std::str::FromStr;
+use super::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
+use super::parser_util::*;
+
+grammar;
+
+pub Expr: Box<Expr> = {
+    Sum CmpOp Sum => cmp_op(<>),
+    Sum,
+};
+
+CmpOp: CmpOp = {
+    "<"  => CmpOp::Lt,
+    "==" => CmpOp::Eq,
+    ">"  => CmpOp::Gt,
+};
+
+Sum: Box<Expr> = {
+    Sum SumOp Factor => arith_op(<>),
+    Factor,
+};
+
+SumOp: ArithOp = {
+   "+" => ArithOp::Add,
+   "-" => ArithOp::Sub,
+};
+
+Factor: Box<Expr> = {
+    Factor FactorOp Term => arith_op(<>),
+    Term,
+};
+
+FactorOp: ArithOp = {
+   "*" => ArithOp::Mul,
+   "/" => ArithOp::Div,
+};
+
+Term: Box<Expr> = {
+    Num   => Box::new(Expr::Literal(Literal::Number(<>))),
+    Bool  => Box::new(Expr::Literal(Literal::Bool(<>))),
+    Ident => Box::new(Expr::Var(<>)),
+    "(" <Expr> ")",
+};
+
+Num: i64 = r"[0-9]+" => i64::from_str(<>).unwrap();
+
+Bool: bool = {
+    "true"  => true,
+    "false" => false,
+};
+
+Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_owned();
