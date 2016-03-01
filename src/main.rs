@@ -16,7 +16,7 @@ fn repl<F: Fn(&str) -> String>(f: F) {
     loop {
         buffer.clear();
         readline(">", &mut buffer);
-        if buffer == ":q" {
+        if buffer.starts_with(":q") {
             println!("Bye!");
             return;
         }

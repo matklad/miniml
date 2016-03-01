@@ -1,0 +1,11 @@
+[package]
+name = "syntax"
+version = "0.1.0"
+
+build = "build.rs"
+
+[build-dependencies]
+lalrpop = "0.10.0"
+
+[dependencies]
+lalrpop-util = "0.10.0"
