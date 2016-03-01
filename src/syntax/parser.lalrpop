@@ -5,6 +5,7 @@ use super::parser_util::*;
 grammar;
 
 pub Expr: Box<Expr> = {
+    "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>),
     Sum CmpOp Sum => cmp_op(<>),
     Sum,
 };

@@ -35,10 +35,7 @@ mod exprs {
         Literal(Literal),
         ArithBinOp(ArithBinOp),
         CmpBinOp(CmpBinOp),
-//        CompBinOp(CompBinOp),
-        //        Bool(bool),
-//        CompBinOp(CompBinOp),
-//        If(If),
+        If(If),
 //        Fun(Fun),
 //        Application(Application),
     }
@@ -51,6 +48,7 @@ mod exprs {
                 Literal(ref l) => l.fmt(f),
                 ArithBinOp(ref op) => op.fmt(f),
                 CmpBinOp(ref op) => op.fmt(f),
+                If(ref if_) => if_.fmt(f),
             }
         }
     }
@@ -96,6 +94,18 @@ mod exprs {
 
     pub type CmpBinOp = BinOp<CmpOp>;
 
+    pub struct If {
+        pub cond: Box<Expr>,
+        pub tru: Box<Expr>,
+        pub fls: Box<Expr>,
+    }
+
+    impl fmt::Debug for If {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "(if {:?} {:?} {:?})", self.cond, self.tru, self.fls)
+        }
+    }
+
     pub enum Literal {
         Number(i64),
         Bool(bool),
@@ -139,7 +149,9 @@ mod tests {
         assert_parses("1 * 2 > 1", "(> (* 1 2) 1)");
         assert_parses("(1 == 2) == 3", "(== (== 1 2) 3)");
         assert_parses("1 < (2 > 3)", "(< 1 (> 2 3))");
-        assert_parses("1 + 2 * 3", "(+ 1 (* 2 3))")
+        assert_parses("1 + 2 * 3", "(+ 1 (* 2 3))");
+        assert_parses("if 1 then 2 else if 3 then 4 else 5", "(if 1 2 (if 3 4 5))");
+        assert_parses("if 1 then if 2 then 3 else 4 else 5", "(if 1 (if 2 3 4) 5)");
     }
 
     #[test]
