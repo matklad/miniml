@@ -1,31 +1,36 @@
 mod parser;
 mod parser_util;
 
-pub use self::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
+pub use self::exprs::Expr;
+pub use self::types::Type;
 pub use self::parser::parse_Expr as parse;
 
-//pub use self::types::Type;
-//type SymbolTable = Vec<String>;
-//
-//pub struct Ident(IdentInner);
-//
-//enum IdentInner {
-//    Interned(usize),
-//    Owned(String),
-//}
-//
-//mod types {
-//    pub enum Type {
-//        Int,
-//        Bool,
-//        Arrow(Arrow),
-//    }
-//
-//    pub struct Arrow(Box<Type>, Box<Type>);
-//}
+mod types {
+    use std::fmt;
+
+    pub enum Type {
+        Int,
+        Bool,
+        Arrow(Box<Type>, Box<Type>),
+    }
+
+    impl fmt::Debug for Type {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            use self::Type::*;
+            match *self {
+                Int =>  f.write_str("int"),
+                Bool => f.write_str("bool"),
+                Arrow(ref l, ref r) => match **l {
+                    Arrow(..) => write!(f, "({:?}) -> {:?}", l, r),
+                    _ => write!(f, "{:?} -> {:?}", l, r),
+                },
+            }
+        }
+    }
+}
 
 mod exprs {
-//    use super::{Type, Ident};
+    use super::Type;
     use std::fmt::{self, Write};
 
     pub type Ident = String;
@@ -36,9 +41,8 @@ mod exprs {
         ArithBinOp(ArithBinOp),
         CmpBinOp(CmpBinOp),
         If(If),
+        Fun(Fun),
         Apply(Apply),
-//        Fun(Fun),
-//        Application(Application),
     }
 
     impl fmt::Debug for Expr {
@@ -51,6 +55,7 @@ mod exprs {
                 CmpBinOp(ref op) => op.fmt(f),
                 If(ref if_) => if_.fmt(f),
                 Apply(ref apply) => apply.fmt(f),
+                Fun(ref fun) => fun.fmt(f),
             }
         }
     }
@@ -105,6 +110,21 @@ mod exprs {
     impl fmt::Debug for If {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "(if {:?} {:?} {:?})", self.cond, self.tru, self.fls)
+        }
+    }
+
+    pub struct Fun {
+        pub name: Ident,
+        pub arg_name: Ident,
+        pub arg_type: Box<Type>,
+        pub fun_type: Box<Type>,
+        pub body: Box<Expr>,
+    }
+
+    impl fmt::Debug for Fun {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "(λ {} ({}: {:?}): {:?} {:?})",
+                   self.name, self.arg_name, self.arg_type, self.fun_type, self.body)
         }
     }
 
@@ -169,6 +189,16 @@ mod tests {
         assert_parses("1 * f 92", "(* 1 (f 92))");
     }
 
+    #[test]
+    fn test_good_fns() {
+        assert_parses("fun id(x: int): int is x", "(λ id (x: int): int x)");
+        assert_parses("fun id(x: (int -> int) -> bool): bool -> (int -> int) is x",
+                      "(λ id (x: (int -> int) -> bool): bool -> int -> int x)");
+        assert_parses("fun id(x: int): int is fun id(x: int): int is x",
+                      "(λ id (x: int): int (λ id (x: int): int x))");
+        assert_parses("fun factorial(n: int): int is if n == 0 then 1 else n * factorial (n - 1)",
+                      "(λ factorial (n: int): int (if (== n 0) 1 (* n (factorial (- n 1)))))");
+    }
 
     #[test]
     fn test_bad_expressions() {

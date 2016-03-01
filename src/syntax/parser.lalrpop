@@ -1,11 +1,13 @@
 use std::str::FromStr;
-use super::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
+use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
+use super::types::Type;
 use super::parser_util::*;
 
-grammar;
+grammar["LALR(1)"];
 
 pub Expr: Box<Expr> = {
     "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>),
+    "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun_expr(<>),
     Sum CmpOp Sum => cmp_op(<>),
     Sum,
 };
@@ -46,6 +48,17 @@ Term: Box<Expr> = {
     Bool  => Box::new(Expr::Literal(Literal::Bool(<>))),
     Ident => Box::new(Expr::Var(<>)),
     "(" <Expr> ")",
+};
+
+Type: Box<Type> = {
+    <AtomType> "->" <Type> => Box::new(Type::Arrow(<>)),
+    AtomType,
+};
+
+AtomType: Box<Type> = {
+    "int"  => Box::new(Type::Int),
+    "bool" => Box::new(Type::Bool),
+    "(" <Type> ")",
 };
 
 Num: i64 = r"[0-9]+" => i64::from_str(<>).unwrap();
