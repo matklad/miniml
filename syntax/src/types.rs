@@ -19,4 +19,3 @@ impl fmt::Debug for Type {
         }
     }
 }
-

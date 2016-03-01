@@ -6,11 +6,11 @@ pub type Ident = String;
 pub enum Expr {
     Var(Ident),
     Literal(Literal),
-    ArithBinOp(ArithBinOp),
-    CmpBinOp(CmpBinOp),
-    If(If),
-    Fun(Fun),
-    Apply(Apply),
+    ArithBinOp(Box<ArithBinOp>),
+    CmpBinOp(Box<CmpBinOp>),
+    If(Box<If>),
+    Fun(Box<Fun>),
+    Apply(Box<Apply>),
 }
 
 impl fmt::Debug for Expr {
@@ -30,8 +30,8 @@ impl fmt::Debug for Expr {
 
 pub struct BinOp<T> {
     pub kind: T,
-    pub lhs: Box<Expr>,
-    pub rhs: Box<Expr>,
+    pub lhs: Expr,
+    pub rhs: Expr,
 }
 
 impl<T: fmt::Debug> fmt::Debug for BinOp<T> {
@@ -70,9 +70,9 @@ impl fmt::Debug for CmpOp {
 pub type CmpBinOp = BinOp<CmpOp>;
 
 pub struct If {
-    pub cond: Box<Expr>,
-    pub tru: Box<Expr>,
-    pub fls: Box<Expr>,
+    pub cond: Expr,
+    pub tru: Expr,
+    pub fls: Expr,
 }
 
 impl fmt::Debug for If {
@@ -84,9 +84,9 @@ impl fmt::Debug for If {
 pub struct Fun {
     pub name: Ident,
     pub arg_name: Ident,
-    pub arg_type: Box<Type>,
-    pub fun_type: Box<Type>,
-    pub body: Box<Expr>,
+    pub arg_type: Type,
+    pub fun_type: Type,
+    pub body: Expr,
 }
 
 impl fmt::Debug for Fun {
@@ -97,8 +97,8 @@ impl fmt::Debug for Fun {
 }
 
 pub struct Apply {
-    pub fun: Box<Expr>,
-    pub arg: Box<Expr>,
+    pub fun: Expr,
+    pub arg: Expr,
 }
 
 impl fmt::Debug for Apply {

@@ -1,24 +1,24 @@
 use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun};
 use super::types::Type;
 
-pub fn arith_op(l: Box<Expr>, op: ArithOp, r: Box<Expr>) -> Box<Expr> {
-    Box::new(Expr::ArithBinOp(ArithBinOp {
+pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
+    Expr::ArithBinOp(Box::new(ArithBinOp {
         kind: op,
         lhs: l,
         rhs: r,
     }))
 }
 
-pub fn cmp_op(l: Box<Expr>, op: CmpOp, r: Box<Expr>) -> Box<Expr> {
-    Box::new(Expr::CmpBinOp(CmpBinOp {
+pub fn cmp_op(l: Expr, op: CmpOp, r: Expr) -> Expr {
+    Expr::CmpBinOp(Box::new(CmpBinOp {
         kind: op,
         lhs: l,
         rhs: r,
     }))
 }
 
-pub fn if_expr(cond: Box<Expr>, tru: Box<Expr>, fls: Box<Expr>) -> Box<Expr> {
-    Box::new(Expr::If(If {
+pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
+    Expr::If(Box::new(If {
         cond: cond,
         tru: tru,
         fls: fls,
@@ -27,10 +27,10 @@ pub fn if_expr(cond: Box<Expr>, tru: Box<Expr>, fls: Box<Expr>) -> Box<Expr> {
 
 pub fn fun_expr(name: String,
                 arg_name: String,
-                arg_type: Box<Type>,
-                fun_type: Box<Type>,
-                body: Box<Expr>) -> Box<Expr> {
-    Box::new(Expr::Fun(Fun {
+                arg_type: Type,
+                fun_type: Type,
+                body: Expr) -> Expr {
+    Expr::Fun(Box::new(Fun {
         name: name,
         arg_name: arg_name,
         arg_type: arg_type,
@@ -39,8 +39,8 @@ pub fn fun_expr(name: String,
     }))
 }
 
-pub fn application(fun: Box<Expr>, arg: Box<Expr>) -> Box<Expr> {
-    Box::new(Expr::Apply(Apply {
+pub fn application(fun: Expr, arg: Expr) -> Expr {
+    Expr::Apply(Box::new(Apply {
         fun: fun,
         arg: arg,
     }))
