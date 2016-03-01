@@ -27,7 +27,12 @@ SumOp: ArithOp = {
 };
 
 Factor: Box<Expr> = {
-    Factor FactorOp Term => arith_op(<>),
+    Factor FactorOp App => arith_op(<>),
+    App,
+};
+
+App: Box<Expr> = {
+    App Term => application(<>),
     Term,
 };
 

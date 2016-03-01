@@ -1,4 +1,4 @@
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If};
+use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply};
 
 pub fn arith_op(l: Box<Expr>, op: ArithOp, r: Box<Expr>) -> Box<Expr> {
     Box::new(Expr::ArithBinOp(ArithBinOp {
@@ -21,5 +21,12 @@ pub fn if_expr(cond: Box<Expr>, tru: Box<Expr>, fls: Box<Expr>) -> Box<Expr> {
         cond: cond,
         tru: tru,
         fls: fls,
+    }))
+}
+
+pub fn application(fun: Box<Expr>, arg: Box<Expr>) -> Box<Expr> {
+    Box::new(Expr::Apply(Apply {
+        fun: fun,
+        arg: arg,
     }))
 }

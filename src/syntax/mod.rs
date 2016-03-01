@@ -36,6 +36,7 @@ mod exprs {
         ArithBinOp(ArithBinOp),
         CmpBinOp(CmpBinOp),
         If(If),
+        Apply(Apply),
 //        Fun(Fun),
 //        Application(Application),
     }
@@ -49,6 +50,7 @@ mod exprs {
                 ArithBinOp(ref op) => op.fmt(f),
                 CmpBinOp(ref op) => op.fmt(f),
                 If(ref if_) => if_.fmt(f),
+                Apply(ref apply) => apply.fmt(f),
             }
         }
     }
@@ -106,6 +108,17 @@ mod exprs {
         }
     }
 
+    pub struct Apply {
+        pub fun: Box<Expr>,
+        pub arg: Box<Expr>,
+    }
+
+    impl fmt::Debug for Apply {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "({:?} {:?})", self.fun, self.arg)
+        }
+    }
+
     pub enum Literal {
         Number(i64),
         Bool(bool),
@@ -137,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn test_good() {
+    fn test_good_expressions() {
         assert_parses("92", "92");
         assert_parses("(92)", "92");
         assert_parses("(((92)))", "92");
@@ -152,10 +165,13 @@ mod tests {
         assert_parses("1 + 2 * 3", "(+ 1 (* 2 3))");
         assert_parses("if 1 then 2 else if 3 then 4 else 5", "(if 1 2 (if 3 4 5))");
         assert_parses("if 1 then if 2 then 3 else 4 else 5", "(if 1 (if 2 3 4) 5)");
+        assert_parses("f 92 + x y z", "(+ (f 92) ((x y) z))");
+        assert_parses("1 * f 92", "(* 1 (f 92))");
     }
 
+
     #[test]
-    fn test_bad() {
+    fn test_bad_expressions() {
         you_shall_not_parse("((92)");
         you_shall_not_parse("1 == 1 == 1");
         you_shall_not_parse("1 < 1 > 1");
