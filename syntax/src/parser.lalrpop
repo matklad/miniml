@@ -6,10 +6,8 @@ use super::parser_util::*;
 grammar["LALR(1)"];
 
 pub Expr: Expr = {
-    "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>),
-    "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun_expr(<>),
-    Sum CmpOp Sum => cmp_op(<>),
-    Sum,
+    SumL CmpOp SumR => cmp_op(<>),
+    SumR,
 };
 
 CmpOp: CmpOp = {
@@ -18,9 +16,14 @@ CmpOp: CmpOp = {
     ">"  => CmpOp::Gt,
 };
 
-Sum: Expr = {
-    Sum SumOp Factor => arith_op(<>),
-    Factor,
+SumR: Expr = {
+    SumL SumOp FactorR => arith_op(<>),
+    FactorR,
+};
+
+SumL: Expr = {
+    SumL SumOp FactorL => arith_op(<>),
+    FactorL
 };
 
 SumOp: ArithOp = {
@@ -28,14 +31,14 @@ SumOp: ArithOp = {
    "-" => ArithOp::Sub,
 };
 
-Factor: Expr = {
-    Factor FactorOp App => arith_op(<>),
-    App,
+FactorR: Expr = {
+    FactorL FactorOp AppR => arith_op(<>),
+    AppR,
 };
 
-App: Expr = {
-    App Term => application(<>),
-    Term,
+FactorL: Expr = {
+    FactorL FactorOp AppL => arith_op(<>),
+    AppL,
 };
 
 FactorOp: ArithOp = {
@@ -43,12 +46,34 @@ FactorOp: ArithOp = {
    "/" => ArithOp::Div,
 };
 
-Term: Expr = {
+AppR: Expr = {
+    AppL TermR => application(<>),
+    TermR,
+};
+
+AppL : Expr = {
+    AppL TermL => application(<>),
+    TermL,
+};
+
+TermR: Expr = {
+    If,
+    Fun,
+    TermL,
+};
+
+TermL: Expr = {
+    Parens,
     Num   => Expr::Literal(Literal::Number(<>)),
     Bool  => Expr::Literal(Literal::Bool(<>)),
     Ident => Expr::Var(<>),
-    "(" <Expr> ")",
 };
+
+If:  Expr = "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>);
+
+Fun: Expr = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun_expr(<>);
+
+Parens: Expr = "(" <Expr> ")";
 
 Type: Type = {
     <fun:AtomType> "->" <arg:Type> => Type::Arrow(Box::new(fun), Box::new(arg)),

@@ -1,10 +1,9 @@
 extern crate miniml;
 
+use std::io::prelude::*;
+use std::io;
 
 fn readline(ps: &str, buffer: &mut String) {
-    use std::io::prelude::*;
-    use std::io;
-
     write!(io::stdout(), "{} ", ps).unwrap();
     io::stdout().flush().unwrap();
     io::stdin().read_line(buffer).unwrap();
