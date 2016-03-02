@@ -2,27 +2,27 @@ use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun};
 use super::types::Type;
 
 pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
-    Expr::ArithBinOp(Box::new(ArithBinOp {
+    ArithBinOp {
         kind: op,
         lhs: l,
         rhs: r,
-    }))
+    }.into()
 }
 
 pub fn cmp_op(l: Expr, op: CmpOp, r: Expr) -> Expr {
-    Expr::CmpBinOp(Box::new(CmpBinOp {
+    CmpBinOp {
         kind: op,
         lhs: l,
         rhs: r,
-    }))
+    }.into()
 }
 
 pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
-    Expr::If(Box::new(If {
+    If {
         cond: cond,
         tru: tru,
         fls: fls,
-    }))
+    }.into()
 }
 
 pub fn fun_expr(name: String,
@@ -30,18 +30,18 @@ pub fn fun_expr(name: String,
                 arg_type: Type,
                 fun_type: Type,
                 body: Expr) -> Expr {
-    Expr::Fun(Box::new(Fun {
+    Fun {
         name: name,
         arg_name: arg_name,
         arg_type: arg_type,
         fun_type: fun_type,
         body: body,
-    }))
+    }.into()
 }
 
 pub fn application(fun: Expr, arg: Expr) -> Expr {
-    Expr::Apply(Box::new(Apply {
+    Apply {
         fun: fun,
         arg: arg,
-    }))
+    }.into()
 }

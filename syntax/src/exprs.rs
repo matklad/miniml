@@ -54,6 +54,10 @@ impl fmt::Debug for ArithOp {
 
 pub type ArithBinOp = BinOp<ArithOp>;
 
+impl Into<Expr> for ArithBinOp {
+    fn into(self) -> Expr { Expr::ArithBinOp(Box::new(self)) }
+}
+
 pub enum CmpOp { Eq, Lt, Gt }
 
 impl fmt::Debug for CmpOp {
@@ -69,6 +73,10 @@ impl fmt::Debug for CmpOp {
 
 pub type CmpBinOp = BinOp<CmpOp>;
 
+impl Into<Expr> for CmpBinOp {
+    fn into(self) -> Expr { Expr::CmpBinOp(Box::new(self)) }
+}
+
 pub struct If {
     pub cond: Expr,
     pub tru: Expr,
@@ -82,9 +90,7 @@ impl fmt::Debug for If {
 }
 
 impl Into<Expr> for If {
-    fn into(self) -> Expr {
-        Expr::If(Box::new(self))
-    }
+    fn into(self) -> Expr { Expr::If(Box::new(self)) }
 }
 
 pub struct Fun {
@@ -93,6 +99,10 @@ pub struct Fun {
     pub arg_type: Type,
     pub fun_type: Type,
     pub body: Expr,
+}
+
+impl Into<Expr> for Fun {
+    fn into(self) -> Expr { Expr::Fun(Box::new(self)) }
 }
 
 impl fmt::Debug for Fun {
@@ -107,6 +117,10 @@ pub struct Apply {
     pub arg: Expr,
 }
 
+impl Into<Expr> for Apply {
+    fn into(self) -> Expr { Expr::Apply(Box::new(self)) }
+}
+
 impl fmt::Debug for Apply {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({:?} {:?})", self.fun, self.arg)
@@ -118,6 +132,10 @@ pub enum Literal {
     Bool(bool),
 }
 
+impl Into<Expr> for Literal {
+    fn into(self) -> Expr { Expr::Literal(self) }
+}
+
 impl fmt::Debug for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -126,4 +144,3 @@ impl fmt::Debug for Literal {
         }
     }
 }
-

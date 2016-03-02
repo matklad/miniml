@@ -64,8 +64,8 @@ TermR: Expr = {
 
 TermL: Expr = {
     Parens,
-    Num   => Expr::Literal(Literal::Number(<>)),
-    Bool  => Expr::Literal(Literal::Bool(<>)),
+    Num   => Literal::Number(<>).into(),
+    Bool  => Literal::Bool(<>).into(),
     Ident => Expr::Var(<>),
 };
 
