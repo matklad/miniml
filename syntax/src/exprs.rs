@@ -81,6 +81,12 @@ impl fmt::Debug for If {
     }
 }
 
+impl Into<Expr> for If {
+    fn into(self) -> Expr {
+        Expr::If(Box::new(self))
+    }
+}
+
 pub struct Fun {
     pub name: Ident,
     pub arg_name: Ident,
