@@ -1,4 +1,6 @@
 use std::str::FromStr;
+
+use Ident;
 use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
 use super::types::Type;
 use super::parser_util::*;
@@ -93,4 +95,4 @@ Bool: bool = {
     "false" => false,
 };
 
-Ident: String = r"[_a-zA-Z][_a-zA-Z0-9]*" => <>.to_owned();
+Ident: Ident = r"[_a-zA-Z][_a-zA-Z0-9]*" => Ident::from_str(<>);

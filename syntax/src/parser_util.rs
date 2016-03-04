@@ -1,3 +1,4 @@
+use Ident;
 use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun};
 use super::types::Type;
 
@@ -25,8 +26,8 @@ pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
     }.into()
 }
 
-pub fn fun_expr(name: String,
-                arg_name: String,
+pub fn fun_expr(name: Ident,
+                arg_name: Ident,
                 arg_type: Type,
                 fun_type: Type,
                 body: Expr) -> Expr {

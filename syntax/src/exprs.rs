@@ -1,7 +1,7 @@
-use super::Type;
+use Type;
+use Ident;
 use std::fmt::{self, Write};
 
-pub type Ident = String;
 
 pub enum Expr {
     Var(Ident),
@@ -17,7 +17,7 @@ impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Expr::*;
         match *self {
-            Var(ref s) => f.write_str(s),
+            Var(ref s) => f.write_str(s.as_ref()),
             Literal(ref l) => l.fmt(f),
             ArithBinOp(ref op) => op.fmt(f),
             CmpBinOp(ref op) => op.fmt(f),
