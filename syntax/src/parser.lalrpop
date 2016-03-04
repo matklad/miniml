@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::rc::Rc;
 
 use Ident;
 use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
@@ -77,8 +78,8 @@ Fun: Expr = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => f
 
 Parens: Expr = "(" <Expr> ")";
 
-Type: Type = {
-    <fun:AtomType> "->" <arg:Type> => Type::Arrow(Box::new(fun), Box::new(arg)),
+pub Type: Type = {
+    <fun:AtomType> "->" <arg:Type> => Type::Arrow(Rc::new(fun), Rc::new(arg)),
     AtomType,
 };
 
