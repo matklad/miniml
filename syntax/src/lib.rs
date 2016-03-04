@@ -29,4 +29,3 @@ impl fmt::Display for Ident {
         self.0.fmt(f)
     }
 }
-

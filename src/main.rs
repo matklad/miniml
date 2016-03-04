@@ -24,7 +24,5 @@ fn repl<F: Fn(&str) -> String>(f: F) {
 }
 
 fn main() {
-    repl(|expr| {
-        format!("{:?}", miniml::parse(expr))
-    })
+    repl(|expr| format!("{:?}", miniml::parse(expr)))
 }

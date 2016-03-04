@@ -36,29 +36,42 @@ pub struct BinOp<T> {
 
 impl<T: fmt::Debug> fmt::Debug for BinOp<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-       write!(f, "({:?} {:?} {:?})", self.kind, self.lhs, self.rhs)
+        write!(f, "({:?} {:?} {:?})", self.kind, self.lhs, self.rhs)
     }
 }
 
-pub enum ArithOp { Mul, Div, Add, Sub }
+pub enum ArithOp {
+    Mul,
+    Div,
+    Add,
+    Sub,
+}
 
 impl fmt::Debug for ArithOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ArithOp::*;
         f.write_char(match *self {
-            Mul => '*', Div => '\\',
-            Add => '+', Sub => '-',
-         })
+            Mul => '*',
+            Div => '\\',
+            Add => '+',
+            Sub => '-',
+        })
     }
 }
 
 pub type ArithBinOp = BinOp<ArithOp>;
 
 impl Into<Expr> for ArithBinOp {
-    fn into(self) -> Expr { Expr::ArithBinOp(Box::new(self)) }
+    fn into(self) -> Expr {
+        Expr::ArithBinOp(Box::new(self))
+    }
 }
 
-pub enum CmpOp { Eq, Lt, Gt }
+pub enum CmpOp {
+    Eq,
+    Lt,
+    Gt,
+}
 
 impl fmt::Debug for CmpOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -67,14 +80,16 @@ impl fmt::Debug for CmpOp {
             Eq => "==",
             Lt => "<",
             Gt => ">",
-         })
+        })
     }
 }
 
 pub type CmpBinOp = BinOp<CmpOp>;
 
 impl Into<Expr> for CmpBinOp {
-    fn into(self) -> Expr { Expr::CmpBinOp(Box::new(self)) }
+    fn into(self) -> Expr {
+        Expr::CmpBinOp(Box::new(self))
+    }
 }
 
 pub struct If {
@@ -90,7 +105,9 @@ impl fmt::Debug for If {
 }
 
 impl Into<Expr> for If {
-    fn into(self) -> Expr { Expr::If(Box::new(self)) }
+    fn into(self) -> Expr {
+        Expr::If(Box::new(self))
+    }
 }
 
 pub struct Fun {
@@ -102,13 +119,20 @@ pub struct Fun {
 }
 
 impl Into<Expr> for Fun {
-    fn into(self) -> Expr { Expr::Fun(Box::new(self)) }
+    fn into(self) -> Expr {
+        Expr::Fun(Box::new(self))
+    }
 }
 
 impl fmt::Debug for Fun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(λ {} ({}: {:?}): {:?} {:?})",
-               self.name, self.arg_name, self.arg_type, self.fun_type, self.body)
+        write!(f,
+               "(λ {} ({}: {:?}): {:?} {:?})",
+               self.name,
+               self.arg_name,
+               self.arg_type,
+               self.fun_type,
+               self.body)
     }
 }
 
@@ -118,7 +142,9 @@ pub struct Apply {
 }
 
 impl Into<Expr> for Apply {
-    fn into(self) -> Expr { Expr::Apply(Box::new(self)) }
+    fn into(self) -> Expr {
+        Expr::Apply(Box::new(self))
+    }
 }
 
 impl fmt::Debug for Apply {
@@ -133,7 +159,9 @@ pub enum Literal {
 }
 
 impl Into<Expr> for Literal {
-    fn into(self) -> Expr { Expr::Literal(self) }
+    fn into(self) -> Expr {
+        Expr::Literal(self)
+    }
 }
 
 impl fmt::Debug for Literal {

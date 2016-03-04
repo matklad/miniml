@@ -96,8 +96,13 @@ mod tests {
     fn assert_valid(expr: &str, type_: Type) {
         let expr = parse(expr);
         match typecheck(&expr) {
-            Ok(t) => assert!(t == type_, "Wrong type for {:?}.\nExpected {:?}, got {:?}",
-                             expr, type_, t),
+            Ok(t) => {
+                assert!(t == type_,
+                        "Wrong type for {:?}.\nExpected {:?}, got {:?}",
+                        expr,
+                        type_,
+                        t)
+            }
             Err(e) => assert!(false, "Failed to typecheck {:?}:\n {:?}", expr, e),
         }
     }
@@ -105,7 +110,9 @@ mod tests {
     fn assert_fails(expr: &str) {
         let expr = parse(expr);
         let t = typecheck(&expr);
-        assert!(t.is_err(), "This expression should not typecheck: {:?}", expr);
+        assert!(t.is_err(),
+                "This expression should not typecheck: {:?}",
+                expr);
     }
 
     #[test]

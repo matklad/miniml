@@ -7,7 +7,8 @@ pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
         kind: op,
         lhs: l,
         rhs: r,
-    }.into()
+    }
+    .into()
 }
 
 pub fn cmp_op(l: Expr, op: CmpOp, r: Expr) -> Expr {
@@ -15,7 +16,8 @@ pub fn cmp_op(l: Expr, op: CmpOp, r: Expr) -> Expr {
         kind: op,
         lhs: l,
         rhs: r,
-    }.into()
+    }
+    .into()
 }
 
 pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
@@ -23,26 +25,25 @@ pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
         cond: cond,
         tru: tru,
         fls: fls,
-    }.into()
+    }
+    .into()
 }
 
-pub fn fun_expr(name: Ident,
-                arg_name: Ident,
-                arg_type: Type,
-                fun_type: Type,
-                body: Expr) -> Expr {
+pub fn fun_expr(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, body: Expr) -> Expr {
     Fun {
         name: name,
         arg_name: arg_name,
         arg_type: arg_type,
         fun_type: fun_type,
         body: body,
-    }.into()
+    }
+    .into()
 }
 
 pub fn application(fun: Expr, arg: Expr) -> Expr {
     Apply {
         fun: fun,
         arg: arg,
-    }.into()
+    }
+    .into()
 }

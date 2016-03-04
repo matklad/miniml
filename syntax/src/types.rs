@@ -11,12 +11,14 @@ impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
         match *self {
-            Int =>  f.write_str("int"),
+            Int => f.write_str("int"),
             Bool => f.write_str("bool"),
-            Arrow(ref l, ref r) => match **l {
-                Arrow(..) => write!(f, "({:?}) -> {:?}", l, r),
-                _ => write!(f, "{:?} -> {:?}", l, r),
-            },
+            Arrow(ref l, ref r) => {
+                match **l {
+                    Arrow(..) => write!(f, "({:?}) -> {:?}", l, r),
+                    _ => write!(f, "{:?} -> {:?}", l, r),
+                }
+            }
         }
     }
 }
