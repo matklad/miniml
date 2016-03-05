@@ -23,23 +23,25 @@ type Activation<'p> = &'p [Instruction];
 
 #[derive(Debug)]
 pub struct Machine<'p> {
+    program: &'p Program,
     values: Vec<Value>,
     activations: Vec<Activation<'p>>,
 }
 
 impl<'p> Machine<'p> {
-    pub fn new() -> Self {
+    pub fn new(program: &'p Program) -> Self {
         Machine {
+            program: program,
             values: vec![],
             activations: vec![],
         }
     }
 
-    pub fn exec(&mut self, program: &'p Program) -> Result<Value> {
-        try!(self.switch_frame(program, 0));
+    pub fn exec(&mut self) -> Result<Value> {
+        try!(self.switch_frame(0));
 
         while let Some(inst) = self.fetch_instruction() {
-            try!(inst.exec(self, program));
+            try!(inst.exec(self));
         }
 
         self.pop_value().and_then(|result| {
@@ -61,11 +63,12 @@ impl<'p> Machine<'p> {
         })
     }
 
-    fn switch_frame(&mut self, program: &'p Program, frame: usize) -> Result<()> {
-        program.frames
-               .get(frame)
-               .ok_or(fatal_error("illegal jump"))
-               .map(|frame| self.activations.push(frame))
+    fn switch_frame(&mut self, frame: usize) -> Result<()> {
+        self.program
+            .frames
+            .get(frame)
+            .ok_or(fatal_error("illegal jump"))
+            .map(|frame| self.activations.push(frame))
     }
 
     fn push_int(&mut self, value: i64) {
@@ -91,13 +94,12 @@ impl<'p> Machine<'p> {
     }
 }
 
-
 trait Exec {
     fn exec(self, state: &mut Machine) -> Result<()>;
 }
 
-impl Instruction {
-    fn exec<'m, 'p: 'm>(self, machine: &'m mut Machine<'p>, program: &'p Program) -> Result<()> {
+impl Exec for Instruction {
+    fn exec(self, machine: &mut Machine) -> Result<()> {
         use self::program::Instruction::*;
 
         match self {
@@ -111,7 +113,7 @@ impl Instruction {
                 } else {
                     fls
                 };
-                return machine.switch_frame(program, jump);
+                return machine.switch_frame(jump);
             }
         }
         Ok(())
@@ -213,9 +215,8 @@ mod tests {
     fn assert_execs<V: Into<Value>>(expected: V, asm: &str) {
         let expected = expected.into();
         let program = parse_secd(asm);
-        let mut machine = Machine::new();
-        let result = machine.exec(&program);
-        match result {
+        let mut machine = Machine::new(&program);
+        match machine.exec() {
             Ok(value) => {
                 assert!(value == expected,
                         "Wrong answer\nExpected {:?}\nGot {:?}\nMachine {:#?}",
@@ -229,8 +230,8 @@ mod tests {
 
     fn assert_fails(expected_message: &str, asm: &str) {
         let program = parse_secd(asm);
-        let mut machine = Machine::new();
-        match machine.exec(&program) {
+        let mut machine = Machine::new(&program);
+        match machine.exec() {
             Ok(_) => {
                 assert!(false,
                         "Machine should have failed with {}\n{:#?}",

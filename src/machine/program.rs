@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Debug)]
 pub struct Program {
     pub frames: Vec<Frame>,
 }
