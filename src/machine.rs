@@ -10,6 +10,22 @@ pub enum Value {
     Bool(bool),
 }
 
+impl Value {
+    fn into_int(self) -> Result<i64> {
+        match self {
+            Value::Int(i) => Ok(i),
+            _ => Err(fatal_error("runtime type error")),
+        }
+    }
+
+    fn into_bool(self) -> Result<bool> {
+        match self {
+            Value::Bool(b) => Ok(b),
+            _ => Err(fatal_error("runtime type error")),
+        }
+    }
+}
+
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -25,7 +41,7 @@ pub enum Instruction {
     CmpInstruction(CmpInstruction),
     PushInt(i64),
     PushBool(bool),
-//    Branch(usize, usize),
+    Branch(usize, usize),
 }
 
 impl fmt::Display for Instruction {
@@ -36,6 +52,7 @@ impl fmt::Display for Instruction {
             CmpInstruction(ref inst) => inst.fmt(f),
             PushInt(i) => write!(f, "push {}", i),
             PushBool(b) => write!(f, "push {}", b),
+            Branch(l, r) => write!(f, "branch {} {}", l, r),
         }
     }
 }
@@ -115,7 +132,7 @@ impl Machine {
 
     pub fn exec(&mut self) -> Result<Value> {
         while let Some(inst) = self.current_instruction() {
-            try!(inst.exec(&mut self.state));
+            try!(inst.exec(self));
         }
         let result = try!(self.state.pop_value());
         if !self.state.values.is_empty() {
@@ -133,6 +150,15 @@ impl Machine {
 
     fn current_frame(&self) -> &[Instruction] {
         &self.frames[self.state.fp]
+    }
+
+    fn switch_frame(&mut self, frame: usize) -> Result<()> {
+        if frame > self.frames.len() {
+            return Err(fatal_error("illegal jump"));
+        }
+        self.state.fp = frame;
+        self.state.ip = 0;
+        Ok(())
     }
 }
 
@@ -161,13 +187,11 @@ impl State {
     }
 
     fn pop_int(&mut self) -> Result<i64> {
-        self.pop_value()
-            .and_then(|value| {
-                match value {
-                    Value::Int(i) => Ok(i),
-                    _ => Err(fatal_error("runtime type error")),
-                }
-            })
+        self.pop_value().and_then(|v| v.into_int())
+    }
+
+    fn pop_bool(&mut self) -> Result<bool> {
+        self.pop_value().and_then(|v| v.into_bool())
     }
 
     fn pop_value(&mut self) -> Result<Value> {
@@ -181,17 +205,25 @@ trait Exec {
     fn exec(self, state: &mut State) -> Result<()>;
 }
 
-impl Exec for Instruction {
-    fn exec(self, state: &mut State) -> Result<()> {
+impl Instruction {
+    fn exec(self, machine: &mut Machine) -> Result<()> {
         use self::Instruction::*;
 
         match self {
-            ArithInstruction(inst) => try!(inst.exec(state)),
-            CmpInstruction(inst) => try!(inst.exec(state)),
-            PushInt(i) => state.push_int(i),
-            PushBool(b) => state.push_bool(b),
+            ArithInstruction(inst) => try!(inst.exec(&mut machine.state)),
+            CmpInstruction(inst) => try!(inst.exec(&mut machine.state)),
+            PushInt(i) => machine.state.push_int(i),
+            PushBool(b) => machine.state.push_bool(b),
+            Branch(tru, fls) => {
+                let cond = try!(machine.state.pop_bool());
+                return machine.switch_frame(if cond {
+                    tru
+                } else {
+                    fls
+                });
+            }
         }
-        state.ip += 1;
+        machine.state.ip += 1;
         Ok(())
     }
 }
@@ -235,27 +267,44 @@ impl Exec for CmpInstruction {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
     use super::*;
 
-    const ADD: Instruction = Instruction::ArithInstruction(ArithInstruction::Add);
-    const SUB: Instruction = Instruction::ArithInstruction(ArithInstruction::Sub);
-    const MUL: Instruction = Instruction::ArithInstruction(ArithInstruction::Mul);
-    const DIV: Instruction = Instruction::ArithInstruction(ArithInstruction::Div);
+    fn parse_secd(input: &str) -> Vec<Instruction> {
+        fn parse_inst(line: &str) -> Instruction {
+            let mut words = line.trim().split_whitespace();
+            let op = words.next().expect("Missing op");
+            let arg = words.next().map(|s| {
+                match s {
+                    "true" => Value::Bool(true),
+                    "false" => Value::Bool(false),
+                    _ => Value::Int(i64::from_str(s).unwrap()),
+                }
+            });
+            assert_eq!(None, words.next());
+            match (op, arg) {
+                ("add", None) => Instruction::ArithInstruction(ArithInstruction::Add),
+                ("sub", None) => Instruction::ArithInstruction(ArithInstruction::Sub),
+                ("mul", None) => Instruction::ArithInstruction(ArithInstruction::Mul),
+                ("div", None) => Instruction::ArithInstruction(ArithInstruction::Div),
+                ("lt", None) => Instruction::CmpInstruction(CmpInstruction::Lt),
+                ("eq", None) => Instruction::CmpInstruction(CmpInstruction::Eq),
+                ("gt", None) => Instruction::CmpInstruction(CmpInstruction::Gt),
+                ("push", Some(Value::Int(i))) => Instruction::PushInt(i),
+                ("push", Some(Value::Bool(b))) => Instruction::PushBool(b),
+                _ => panic!("Invalid instruction {}", line),
+            }
 
-    const LT: Instruction = Instruction::CmpInstruction(CmpInstruction::Lt);
-    const EQ: Instruction = Instruction::CmpInstruction(CmpInstruction::Eq);
-    const GT: Instruction = Instruction::CmpInstruction(CmpInstruction::Gt);
-
-    fn pushi(i: i64) -> Instruction {
-        Instruction::PushInt(i)
+        }
+        let input = input.trim();
+        input.lines()
+             .flat_map(|line| line.split(';'))
+             .map(parse_inst)
+             .collect()
     }
 
-    fn pushb(b: bool) -> Instruction {
-        Instruction::PushBool(b)
-    }
-
-    fn assert_execs(instructions: Vec<Instruction>, expected: Value) {
-        let mut machine = Machine::new(instructions);
+    fn assert_execs(expected: Value, asm: &str) {
+        let mut machine = Machine::new(parse_secd(asm));
         match machine.exec() {
             Ok(value) => {
                 assert!(value == expected,
@@ -268,8 +317,8 @@ mod tests {
         }
     }
 
-    fn assert_fails(instructions: Vec<Instruction>, expected_message: &str) {
-        let mut machine = Machine::new(instructions);
+    fn assert_fails(expected_message: &str, asm: &str) {
+        let mut machine = Machine::new(parse_secd(asm));
         match machine.exec() {
             Ok(_) => {
                 assert!(false,
@@ -289,34 +338,32 @@ mod tests {
 
     #[test]
     fn basic() {
-        assert_execs(vec![pushi(92)], Value::Int(92));
-        assert_fails(vec![], "Fatal: empty stack :(");
-        assert_fails(vec![pushi(92), pushi(62)],
-                     "Fatal: more then one value on stack left :(")
+        assert_execs(Value::Int(92), "push 92");
+        assert_fails("Fatal: empty stack :(", "");
+        assert_fails("Fatal: more then one value on stack left :(",
+                     "push 1; push 2");
     }
 
     #[test]
     fn arith() {
-        assert_execs(vec![pushi(90), pushi(2), ADD], Value::Int(92));
-        assert_execs(vec![pushi(94), pushi(2), SUB], Value::Int(92));
-        assert_execs(vec![pushi(46), pushi(2), MUL], Value::Int(92));
-        assert_execs(vec![pushi(184), pushi(2), DIV], Value::Int(92));
+        assert_execs(Value::Int(92), "push 90; push 2; add");
+        assert_execs(Value::Int(92), "push 94; push 2; sub");
+        assert_execs(Value::Int(92), "push 46; push 2; mul ");
+        assert_execs(Value::Int(92), "push 184; push 2; div");
 
-        assert_fails(vec![pushi(1), pushi(0), DIV], "Division by zero");
-        assert_fails(vec![ADD], "Fatal: empty stack :(");
-        assert_fails(vec![pushi(1), pushb(true), ADD],
-                     "Fatal: runtime type error :(");
+        assert_fails("Division by zero", "push 1; push 0; div");
+        assert_fails("Fatal: empty stack :(", "add");
+        assert_fails("Fatal: runtime type error :(", "push 1; push true; add");
     }
 
     #[test]
     fn cmp() {
-        assert_execs(vec![pushi(92), pushi(62), LT], Value::Bool(false));
-        assert_execs(vec![pushi(92), pushi(62), GT], Value::Bool(true));
-        assert_execs(vec![pushi(1), pushi(2), EQ], Value::Bool(false));
-        assert_execs(vec![pushi(2), pushi(2), EQ], Value::Bool(true));
+        assert_execs(Value::Bool(false), "push 92; push 62; lt");
+        assert_execs(Value::Bool(true), "push 92; push 62; gt");
+        assert_execs(Value::Bool(false), "push 1; push 2; eq");
+        assert_execs(Value::Bool(true), "push 2; push 2; eq");
 
-        assert_fails(vec![pushi(1), pushb(true), EQ], "Fatal: runtime type error :(");
-        assert_fails(vec![pushb(false), pushb(true), EQ], "Fatal: runtime type error :(");
+        assert_fails("Fatal: runtime type error :(", "push 1; push true; eq");
+        assert_fails("Fatal: runtime type error :(", "push true; push false; eq");
     }
-
 }
