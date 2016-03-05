@@ -26,6 +26,18 @@ impl Value {
     }
 }
 
+impl From<i64> for Value {
+    fn from(i: i64) -> Value {
+        Value::Int(i)
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Value {
+        Value::Bool(b)
+    }
+}
+
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -303,7 +315,8 @@ mod tests {
              .collect()
     }
 
-    fn assert_execs(expected: Value, asm: &str) {
+    fn assert_execs<V: Into<Value>>(expected: V, asm: &str) {
+        let expected = expected.into();
         let mut machine = Machine::new(parse_secd(asm));
         match machine.exec() {
             Ok(value) => {
@@ -338,7 +351,7 @@ mod tests {
 
     #[test]
     fn basic() {
-        assert_execs(Value::Int(92), "push 92");
+        assert_execs(92, "push 92");
         assert_fails("Fatal: empty stack :(", "");
         assert_fails("Fatal: more then one value on stack left :(",
                      "push 1; push 2");
@@ -346,10 +359,10 @@ mod tests {
 
     #[test]
     fn arith() {
-        assert_execs(Value::Int(92), "push 90; push 2; add");
-        assert_execs(Value::Int(92), "push 94; push 2; sub");
-        assert_execs(Value::Int(92), "push 46; push 2; mul ");
-        assert_execs(Value::Int(92), "push 184; push 2; div");
+        assert_execs(92, "push 90; push 2; add");
+        assert_execs(92, "push 94; push 2; sub");
+        assert_execs(92, "push 46; push 2; mul ");
+        assert_execs(92, "push 184; push 2; div");
 
         assert_fails("Division by zero", "push 1; push 0; div");
         assert_fails("Fatal: empty stack :(", "add");
@@ -358,10 +371,10 @@ mod tests {
 
     #[test]
     fn cmp() {
-        assert_execs(Value::Bool(false), "push 92; push 62; lt");
-        assert_execs(Value::Bool(true), "push 92; push 62; gt");
-        assert_execs(Value::Bool(false), "push 1; push 2; eq");
-        assert_execs(Value::Bool(true), "push 2; push 2; eq");
+        assert_execs(false, "push 92; push 62; lt");
+        assert_execs(true, "push 92; push 62; gt");
+        assert_execs(false, "push 1; push 2; eq");
+        assert_execs(true, "push 2; push 2; eq");
 
         assert_fails("Fatal: runtime type error :(", "push 1; push true; eq");
         assert_fails("Fatal: runtime type error :(", "push true; push false; eq");
