@@ -1,77 +1,8 @@
-use std::fmt;
+use self::program::{Program, Instruction, ArithInstruction, CmpInstruction};
 pub use self::value::Value;
 
 mod value;
-
-//struct Name(String);
-
-pub type Frame = Vec<Instruction>;
-
-#[derive(Clone, Copy)]
-pub enum Instruction {
-    ArithInstruction(ArithInstruction),
-    CmpInstruction(CmpInstruction),
-    PushInt(i64),
-    PushBool(bool),
-    Branch(usize, usize),
-}
-
-impl fmt::Display for Instruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Instruction::*;
-        match *self {
-            ArithInstruction(ref inst) => inst.fmt(f),
-            CmpInstruction(ref inst) => inst.fmt(f),
-            PushInt(i) => write!(f, "push {}", i),
-            PushBool(b) => write!(f, "push {}", b),
-            Branch(l, r) => write!(f, "branch {} {}", l, r),
-        }
-    }
-}
-
-impl fmt::Debug for Instruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <Instruction as fmt::Display>::fmt(self, f)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum ArithInstruction {
-    Add,
-    Sub,
-    Mul,
-    Div,
-}
-
-impl fmt::Display for ArithInstruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::ArithInstruction::*;
-        f.write_str(match *self {
-            Add => "add",
-            Sub => "sub",
-            Mul => "mul",
-            Div => "div",
-        })
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum CmpInstruction {
-    Lt,
-    Eq,
-    Gt,
-}
-
-impl fmt::Display for CmpInstruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::CmpInstruction::*;
-        f.write_str(match *self {
-            Lt => "lt",
-            Eq => "eq",
-            Gt => "gt",
-        })
-    }
-}
+mod program;
 
 #[derive(Debug)]
 pub struct RuntimeError {
@@ -88,82 +19,53 @@ fn fatal_error(message: &str) -> RuntimeError {
 
 pub type Result<T> = ::std::result::Result<T, RuntimeError>;
 
-#[derive(Debug)]
-pub struct Machine {
-    frames: Vec<Frame>,
-    state: State,
-}
-
-impl Machine {
-    pub fn new(frames: Vec<Frame>) -> Machine {
-        Machine {
-            frames: if frames.is_empty() {
-                vec![vec![]]
-            } else {
-                frames
-            },
-            state: State::initial(),
-        }
-    }
-
-    pub fn exec(&mut self) -> Result<Value> {
-        while let Some(inst) = self.current_instruction() {
-            try!(inst.exec(self));
-        }
-        let result = try!(self.state.pop_value());
-        if !self.state.values.is_empty() {
-            return Err(fatal_error("more then one value on stack left"));
-        }
-        Ok(result)
-    }
-
-    fn current_instruction(&self) -> Option<Instruction> {
-        let ip = self.state.ip();
-        let frame = self.current_frame();
-        assert!(ip <= frame.len());
-        frame.get(ip).cloned()
-    }
-
-    fn current_frame(&self) -> &[Instruction] {
-        assert!(self.state.fp() < self.frames.len(),
-                "no such frame {}",
-                self.state.fp());
-        &self.frames[self.state.fp()]
-    }
-
-    fn switch_frame(&mut self, frame: usize) -> Result<()> {
-        if frame > self.frames.len() {
-            return Err(fatal_error("illegal jump"));
-        }
-        self.state.activations.push(Activation {
-            ip: 0,
-            fp: frame,
-        });
-        Ok(())
-    }
-}
+type Activation<'p> = &'p [Instruction];
 
 #[derive(Debug)]
-struct State {
+pub struct Machine<'p> {
     values: Vec<Value>,
-    activations: Vec<Activation>,
+    activations: Vec<Activation<'p>>,
 }
 
-#[derive(Debug)]
-struct Activation {
-    ip: usize,
-    fp: usize,
-}
-
-impl State {
-    fn initial() -> State {
-        State {
-            values: Vec::new(),
-            activations: vec![Activation {
-                ip: 0,
-                fp: 0,
-            }],
+impl<'p> Machine<'p> {
+    pub fn new() -> Self {
+        Machine {
+            values: vec![],
+            activations: vec![],
         }
+    }
+
+    pub fn exec(&mut self, program: &'p Program) -> Result<Value> {
+        try!(self.switch_frame(program, 0));
+
+        while let Some(inst) = self.fetch_instruction() {
+            try!(inst.exec(self, program));
+        }
+
+        self.pop_value().and_then(|result| {
+            if !self.values.is_empty() {
+                return Err(fatal_error("more then one value on stack left"));
+            }
+            Ok(result)
+        })
+    }
+
+    fn fetch_instruction(&mut self) -> Option<Instruction> {
+        self.activations.pop().and_then(|act| {
+            act.split_first().map(|(inst, act)| {
+                if !act.is_empty() {
+                    self.activations.push(act);
+                }
+                *inst
+            })
+        })
+    }
+
+    fn switch_frame(&mut self, program: &'p Program, frame: usize) -> Result<()> {
+        program.frames
+               .get(frame)
+               .ok_or(fatal_error("illegal jump"))
+               .map(|frame| self.activations.push(frame))
     }
 
     fn push_int(&mut self, value: i64) {
@@ -187,56 +89,40 @@ impl State {
             .pop()
             .ok_or(fatal_error("empty stack"))
     }
-
-    fn fp(&self) -> usize {
-        self.activation().fp
-    }
-
-    fn ip(&self) -> usize {
-        self.activation().ip
-    }
-
-    fn inc_ip(&mut self) {
-        self.activations.last_mut().unwrap().ip += 1;
-    }
-
-    fn activation(&self) -> &Activation {
-        self.activations.last().unwrap()
-    }
 }
 
+
 trait Exec {
-    fn exec(self, state: &mut State) -> Result<()>;
+    fn exec(self, state: &mut Machine) -> Result<()>;
 }
 
 impl Instruction {
-    fn exec(self, machine: &mut Machine) -> Result<()> {
-        use self::Instruction::*;
+    fn exec<'m, 'p: 'm>(self, machine: &'m mut Machine<'p>, program: &'p Program) -> Result<()> {
+        use self::program::Instruction::*;
 
         match self {
-            ArithInstruction(inst) => try!(inst.exec(&mut machine.state)),
-            CmpInstruction(inst) => try!(inst.exec(&mut machine.state)),
-            PushInt(i) => machine.state.push_int(i),
-            PushBool(b) => machine.state.push_bool(b),
+            ArithInstruction(inst) => try!(inst.exec(machine)),
+            CmpInstruction(inst) => try!(inst.exec(machine)),
+            PushInt(i) => machine.push_int(i),
+            PushBool(b) => machine.push_bool(b),
             Branch(tru, fls) => {
-                let cond = try!(machine.state.pop_bool());
-                return machine.switch_frame(if cond {
+                let jump = if try!(machine.pop_bool()) {
                     tru
                 } else {
                     fls
-                });
+                };
+                return machine.switch_frame(program, jump);
             }
         }
-        machine.state.inc_ip();
         Ok(())
     }
 }
 
 impl Exec for ArithInstruction {
-    fn exec(self, state: &mut State) -> Result<()> {
-        use self::ArithInstruction::*;
-        let op2 = try!(state.pop_int());
-        let op1 = try!(state.pop_int());
+    fn exec(self, machine: &mut Machine) -> Result<()> {
+        use self::program::ArithInstruction::*;
+        let op2 = try!(machine.pop_int());
+        let op1 = try!(machine.pop_int());
         let ret = match self {
             Add => op1 + op2,
             Sub => op1 - op2,
@@ -249,22 +135,22 @@ impl Exec for ArithInstruction {
                 }
             }
         };
-        state.push_int(ret);
+        machine.push_int(ret);
         Ok(())
     }
 }
 
 impl Exec for CmpInstruction {
-    fn exec(self, state: &mut State) -> Result<()> {
-        use self::CmpInstruction::*;
-        let op2 = try!(state.pop_int());
-        let op1 = try!(state.pop_int());
+    fn exec(self, machine: &mut Machine) -> Result<()> {
+        use self::program::CmpInstruction::*;
+        let op2 = try!(machine.pop_int());
+        let op1 = try!(machine.pop_int());
         let ret = match self {
             Lt => op1 < op2,
             Eq => op1 == op2,
             Gt => op1 > op2,
         };
-        state.push_bool(ret);
+        machine.push_bool(ret);
         Ok(())
     }
 }
@@ -275,8 +161,9 @@ mod tests {
     use itertools::Itertools;
 
     use super::*;
+    use super::program::*;
 
-    fn parse_secd(input: &str) -> Vec<Frame> {
+    fn parse_secd(input: &str) -> Program {
         fn parse_inst(line: &str) -> Instruction {
             let mut words = line.split_whitespace();
             let op = words.next().expect("Missing op");
@@ -311,20 +198,24 @@ mod tests {
         }
 
         let input = input.trim();
-        input.lines()
-             .flat_map(|line| line.split(';'))
-             .map(|line| line.trim())
-             .group_by_lazy(|line| line.is_empty())
-             .into_iter()
-             .filter(|&(is_blank, _)| !is_blank)
-             .map(|(_, frame)| frame.into_iter().map(parse_inst).collect::<Frame>())
-             .collect()
+        let frames = input.lines()
+                          .flat_map(|line| line.split(';'))
+                          .map(|line| line.trim())
+                          .group_by_lazy(|line| line.is_empty())
+                          .into_iter()
+                          .filter(|&(is_blank, _)| !is_blank)
+                          .map(|(_, frame)| frame.into_iter().map(parse_inst).collect::<Frame>())
+                          .collect();
+        Program { frames: frames }
+
     }
 
     fn assert_execs<V: Into<Value>>(expected: V, asm: &str) {
         let expected = expected.into();
-        let mut machine = Machine::new(parse_secd(asm));
-        match machine.exec() {
+        let program = parse_secd(asm);
+        let mut machine = Machine::new();
+        let result = machine.exec(&program);
+        match result {
             Ok(value) => {
                 assert!(value == expected,
                         "Wrong answer\nExpected {:?}\nGot {:?}\nMachine {:#?}",
@@ -337,8 +228,9 @@ mod tests {
     }
 
     fn assert_fails(expected_message: &str, asm: &str) {
-        let mut machine = Machine::new(parse_secd(asm));
-        match machine.exec() {
+        let program = parse_secd(asm);
+        let mut machine = Machine::new();
+        match machine.exec(&program) {
             Ok(_) => {
                 assert!(false,
                         "Machine should have failed with {}\n{:#?}",
@@ -358,7 +250,7 @@ mod tests {
     #[test]
     fn basic() {
         assert_execs(92, "push 92");
-        assert_fails("Fatal: empty stack :(", "");
+        assert_fails("Fatal: illegal jump :(", "");
         assert_fails("Fatal: more then one value on stack left :(",
                      "push 1; push 2");
     }
@@ -418,7 +310,8 @@ mod tests {
             push false
         ");
 
-        assert_execs(92,"
+        assert_execs(92,
+                     "
             push true
             branch 1 2
             push false
@@ -427,8 +320,7 @@ mod tests {
 
             push 41
 
-            push 51
-        ");
+            push 51");
 
         assert_fails("Fatal: illegal jump :(", "push true; branch 92 92");
     }
