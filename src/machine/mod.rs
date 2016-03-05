@@ -96,9 +96,12 @@ pub struct Machine {
 
 impl Machine {
     pub fn new(frames: Vec<Frame>) -> Machine {
-        let frames = if frames.is_empty() { vec![vec![]] } else { frames };
         Machine {
-            frames: frames,
+            frames: if frames.is_empty() {
+                vec![vec![]]
+            } else {
+                frames
+            },
             state: State::initial(),
         }
     }
@@ -122,7 +125,9 @@ impl Machine {
     }
 
     fn current_frame(&self) -> &[Instruction] {
-        assert!(self.state.fp < self.frames.len(), "no such frame {}", self.state.fp);
+        assert!(self.state.fp < self.frames.len(),
+                "no such frame {}",
+                self.state.fp);
         &self.frames[self.state.fp]
     }
 
@@ -250,33 +255,42 @@ mod tests {
         fn parse_inst(line: &str) -> Instruction {
             let mut words = line.split_whitespace();
             let op = words.next().expect("Missing op");
-            let arg = words.next().map(|s| {
-                match s {
-                    "true" => Value::Bool(true),
-                    "false" => Value::Bool(false),
-                    _ => Value::Int(i64::from_str(s).unwrap()),
+            let result = {
+                let mut much_arg = || words.next().expect("Missing arg");
+                match op {
+                    "add" => Instruction::ArithInstruction(ArithInstruction::Add),
+                    "sub" => Instruction::ArithInstruction(ArithInstruction::Sub),
+                    "mul" => Instruction::ArithInstruction(ArithInstruction::Mul),
+                    "div" => Instruction::ArithInstruction(ArithInstruction::Div),
+                    "lt" => Instruction::CmpInstruction(CmpInstruction::Lt),
+                    "eq" => Instruction::CmpInstruction(CmpInstruction::Eq),
+                    "gt" => Instruction::CmpInstruction(CmpInstruction::Gt),
+                    "push" => {
+                        match much_arg() {
+                            "true" => Instruction::PushBool(true),
+                            "false" => Instruction::PushBool(false),
+                            s => Instruction::PushInt(i64::from_str(s).unwrap()),
+                        }
+                    }
+                    "branch" => {
+                        let mut much_usize_arg = || usize::from_str(much_arg()).unwrap();
+                        let tru = much_usize_arg();
+                        let fls = much_usize_arg();
+                        Instruction::Branch(tru, fls)
+                    }
+                    _ => panic!("Unknown op: {}", op),
                 }
-            });
+            };
             assert_eq!(None, words.next());
-            match (op, arg) {
-                ("add", None) => Instruction::ArithInstruction(ArithInstruction::Add),
-                ("sub", None) => Instruction::ArithInstruction(ArithInstruction::Sub),
-                ("mul", None) => Instruction::ArithInstruction(ArithInstruction::Mul),
-                ("div", None) => Instruction::ArithInstruction(ArithInstruction::Div),
-                ("lt", None) => Instruction::CmpInstruction(CmpInstruction::Lt),
-                ("eq", None) => Instruction::CmpInstruction(CmpInstruction::Eq),
-                ("gt", None) => Instruction::CmpInstruction(CmpInstruction::Gt),
-                ("push", Some(Value::Int(i))) => Instruction::PushInt(i),
-                ("push", Some(Value::Bool(b))) => Instruction::PushBool(b),
-                _ => panic!("Invalid instruction {}", line),
-            }
-
+            result
         }
+
         let input = input.trim();
         input.lines()
              .flat_map(|line| line.split(';'))
-             .map(|line|line.trim())
-             .group_by_lazy(|line| line.is_empty()).into_iter()
+             .map(|line| line.trim())
+             .group_by_lazy(|line| line.is_empty())
+             .into_iter()
              .filter(|&(is_blank, _)| !is_blank)
              .map(|(_, frame)| frame.into_iter().map(parse_inst).collect::<Frame>())
              .collect()
@@ -345,5 +359,40 @@ mod tests {
 
         assert_fails("Fatal: runtime type error :(", "push 1; push true; eq");
         assert_fails("Fatal: runtime type error :(", "push true; push false; eq");
+    }
+
+    #[test]
+    fn branch() {
+        assert_execs(92,
+                     "
+            push true
+            branch 1 2
+
+            push 92
+
+            push 62
+        ");
+
+        assert_execs(62,
+                     "
+            push false
+            branch 1 2
+
+            push 92
+
+            push 62
+        ");
+
+        assert_fails("Fatal: runtime type error :(",
+                     "
+            push 92
+            branch 1 2
+
+            push true
+
+            push false
+        ");
+
+        assert_fails("Fatal: illegal jump :(", "push true; branch 92 92");
     }
 }
