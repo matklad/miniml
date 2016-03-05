@@ -5,7 +5,7 @@ mod value;
 
 struct Name(String);
 
-type Frame = Vec<Instruction>;
+pub type Frame = Vec<Instruction>;
 
 #[derive(Clone, Copy)]
 pub enum Instruction {
@@ -95,9 +95,10 @@ pub struct Machine {
 }
 
 impl Machine {
-    pub fn new(instructions: Vec<Instruction>) -> Machine {
+    pub fn new(frames: Vec<Frame>) -> Machine {
+        let frames = if frames.is_empty() { vec![vec![]] } else { frames };
         Machine {
-            frames: vec![instructions],
+            frames: frames,
             state: State::initial(),
         }
     }
@@ -121,6 +122,7 @@ impl Machine {
     }
 
     fn current_frame(&self) -> &[Instruction] {
+        assert!(self.state.fp < self.frames.len(), "no such frame {}", self.state.fp);
         &self.frames[self.state.fp]
     }
 
@@ -240,11 +242,13 @@ impl Exec for CmpInstruction {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    use itertools::Itertools;
+
     use super::*;
 
-    fn parse_secd(input: &str) -> Vec<Instruction> {
+    fn parse_secd(input: &str) -> Vec<Frame> {
         fn parse_inst(line: &str) -> Instruction {
-            let mut words = line.trim().split_whitespace();
+            let mut words = line.split_whitespace();
             let op = words.next().expect("Missing op");
             let arg = words.next().map(|s| {
                 match s {
@@ -271,7 +275,10 @@ mod tests {
         let input = input.trim();
         input.lines()
              .flat_map(|line| line.split(';'))
-             .map(parse_inst)
+             .map(|line|line.trim())
+             .group_by_lazy(|line| line.is_empty()).into_iter()
+             .filter(|&(is_blank, _)| !is_blank)
+             .map(|(_, frame)| frame.into_iter().map(parse_inst).collect::<Frame>())
              .collect()
     }
 
