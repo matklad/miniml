@@ -3,7 +3,7 @@ pub use self::value::Value;
 
 mod value;
 
-struct Name(String);
+//struct Name(String);
 
 pub type Frame = Vec<Instruction>;
 
@@ -118,42 +118,51 @@ impl Machine {
     }
 
     fn current_instruction(&self) -> Option<Instruction> {
-        let ip = self.state.ip;
+        let ip = self.state.ip();
         let frame = self.current_frame();
         assert!(ip <= frame.len());
         frame.get(ip).cloned()
     }
 
     fn current_frame(&self) -> &[Instruction] {
-        assert!(self.state.fp < self.frames.len(),
+        assert!(self.state.fp() < self.frames.len(),
                 "no such frame {}",
-                self.state.fp);
-        &self.frames[self.state.fp]
+                self.state.fp());
+        &self.frames[self.state.fp()]
     }
 
     fn switch_frame(&mut self, frame: usize) -> Result<()> {
         if frame > self.frames.len() {
             return Err(fatal_error("illegal jump"));
         }
-        self.state.fp = frame;
-        self.state.ip = 0;
+        self.state.activations.push(Activation {
+            ip: 0,
+            fp: frame,
+        });
         Ok(())
     }
 }
 
 #[derive(Debug)]
 struct State {
+    values: Vec<Value>,
+    activations: Vec<Activation>,
+}
+
+#[derive(Debug)]
+struct Activation {
     ip: usize,
     fp: usize,
-    values: Vec<Value>,
 }
 
 impl State {
     fn initial() -> State {
         State {
-            ip: 0,
-            fp: 0,
             values: Vec::new(),
+            activations: vec![Activation {
+                ip: 0,
+                fp: 0,
+            }],
         }
     }
 
@@ -177,6 +186,22 @@ impl State {
         self.values
             .pop()
             .ok_or(fatal_error("empty stack"))
+    }
+
+    fn fp(&self) -> usize {
+        self.activation().fp
+    }
+
+    fn ip(&self) -> usize {
+        self.activation().ip
+    }
+
+    fn inc_ip(&mut self) {
+        self.activations.last_mut().unwrap().ip += 1;
+    }
+
+    fn activation(&self) -> &Activation {
+        self.activations.last().unwrap()
     }
 }
 
@@ -202,7 +227,7 @@ impl Instruction {
                 });
             }
         }
-        machine.state.ip += 1;
+        machine.state.inc_ip();
         Ok(())
     }
 }
@@ -391,6 +416,18 @@ mod tests {
             push true
 
             push false
+        ");
+
+        assert_execs(92,"
+            push true
+            branch 1 2
+            push false
+            branch 1 2
+            add
+
+            push 41
+
+            push 51
         ");
 
         assert_fails("Fatal: illegal jump :(", "push true; branch 92 92");
