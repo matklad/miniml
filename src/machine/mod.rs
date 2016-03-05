@@ -1,51 +1,11 @@
 use std::fmt;
+pub use self::value::Value;
+
+mod value;
 
 struct Name(String);
 
 type Frame = Vec<Instruction>;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Value {
-    Int(i64),
-    Bool(bool),
-}
-
-impl Value {
-    fn into_int(self) -> Result<i64> {
-        match self {
-            Value::Int(i) => Ok(i),
-            _ => Err(fatal_error("runtime type error")),
-        }
-    }
-
-    fn into_bool(self) -> Result<bool> {
-        match self {
-            Value::Bool(b) => Ok(b),
-            _ => Err(fatal_error("runtime type error")),
-        }
-    }
-}
-
-impl From<i64> for Value {
-    fn from(i: i64) -> Value {
-        Value::Int(i)
-    }
-}
-
-impl From<bool> for Value {
-    fn from(b: bool) -> Value {
-        Value::Bool(b)
-    }
-}
-
-impl fmt::Debug for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Value::Int(i) => i.fmt(f),
-            Value::Bool(b) => b.fmt(f),
-        }
-    }
-}
 
 #[derive(Clone, Copy)]
 pub enum Instruction {
@@ -66,6 +26,12 @@ impl fmt::Display for Instruction {
             PushBool(b) => write!(f, "push {}", b),
             Branch(l, r) => write!(f, "branch {} {}", l, r),
         }
+    }
+}
+
+impl fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <Instruction as fmt::Display>::fmt(self, f)
     }
 }
 
@@ -104,12 +70,6 @@ impl fmt::Display for CmpInstruction {
             Eq => "eq",
             Gt => "gt",
         })
-    }
-}
-
-impl fmt::Debug for Instruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <Instruction as fmt::Display>::fmt(self, f)
     }
 }
 
