@@ -1,4 +1,7 @@
-use syntax::{Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, Apply, Type};
+use std::rc::Rc;
+use std::fmt;
+
+use syntax::{self, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, Apply};
 use context::{Context, StackContext};
 
 pub type Result = ::std::result::Result<Type, TypeError>;
@@ -6,6 +9,50 @@ pub type Result = ::std::result::Result<Type, TypeError>;
 #[derive(Debug)]
 pub struct TypeError {
     pub message: String,
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum Type {
+    Int,
+    Bool,
+    Arrow(Rc<Type>, Rc<Type>),
+}
+
+use self::Type::*;
+
+impl Type {
+    fn maps_to(self, other: Type) -> Type {
+        Arrow(Rc::new(self), Rc::new(other))
+    }
+}
+
+trait IntoType {
+    fn as_type(&self) -> Type;
+}
+
+impl IntoType for syntax::Type {
+    fn as_type(&self) -> Type {
+        match *self {
+            syntax::Type::Int => Int,
+            syntax::Type::Bool => Bool,
+            syntax::Type::Arrow(ref l, ref r) => Arrow(Rc::new(l.as_type()), Rc::new(r.as_type())),
+        }
+    }
+}
+
+impl fmt::Debug for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Int => f.write_str("int"),
+            Bool => f.write_str("bool"),
+            Arrow(ref l, ref r) => {
+                match **l {
+                    Arrow(..) => write!(f, "({:?}) -> {:?}", l, r),
+                    _ => write!(f, "{:?} -> {:?}", l, r),
+                }
+            }
+        }
+    }
 }
 
 pub fn typecheck(expr: &Expr) -> Result {
@@ -57,8 +104,8 @@ impl Typecheck for Expr {
 impl Typecheck for Literal {
     fn check<'a, 'c: 'a, C: Context<'c, Type>>(&'c self, _: &'a mut C) -> Result {
         let t = match *self {
-            Literal::Number(_) => Type::Int,
-            Literal::Bool(_) => Type::Bool,
+            Literal::Number(_) => Int,
+            Literal::Bool(_) => Bool,
         };
         Ok(t)
     }
@@ -66,23 +113,23 @@ impl Typecheck for Literal {
 
 impl Typecheck for ArithBinOp {
     fn check<'a, 'c: 'a, C: Context<'c, Type>>(&'c self, ctx: &'a mut C) -> Result {
-        try!(expect(&self.lhs, Type::Int, ctx));
-        try!(expect(&self.rhs, Type::Int, ctx));
-        Ok(Type::Int)
+        try!(expect(&self.lhs, Int, ctx));
+        try!(expect(&self.rhs, Int, ctx));
+        Ok(Int)
     }
 }
 
 impl Typecheck for CmpBinOp {
     fn check<'a, 'c: 'a, C: Context<'c, Type>>(&'c self, ctx: &'a mut C) -> Result {
-        try!(expect(&self.lhs, Type::Int, ctx));
-        try!(expect(&self.rhs, Type::Int, ctx));
-        Ok(Type::Bool)
+        try!(expect(&self.lhs, Int, ctx));
+        try!(expect(&self.rhs, Int, ctx));
+        Ok(Bool)
     }
 }
 
 impl Typecheck for If {
     fn check<'a, 'c: 'a, C: Context<'c, Type>>(&'c self, ctx: &'a mut C) -> Result {
-        try!(expect(&self.cond, Type::Bool, ctx));
+        try!(expect(&self.cond, Bool, ctx));
         let t1 = try!(self.tru.check(ctx));
         let t2 = try!(self.fls.check(ctx));
         if t1 != t2 {
@@ -94,10 +141,12 @@ impl Typecheck for If {
 
 impl Typecheck for Fun {
     fn check<'a, 'c: 'a, C: Context<'c, Type>>(&'c self, ctx: &'a mut C) -> Result {
-        let result = Type::arrow(&self.arg_type, &self.fun_type);
-        ctx.push(&self.arg_name, self.arg_type.clone());
+        let arg_type = self.arg_type.as_type();
+        let ret_type = self.fun_type.as_type();
+        let result = arg_type.clone().maps_to(ret_type.clone());
+        ctx.push(&self.arg_name, arg_type.clone());
         ctx.push(&self.name, result.clone());
-        try!(expect(&self.body, self.fun_type.clone(), ctx));
+        try!(expect(&self.body, ret_type.clone(), ctx));
         ctx.pop();
         ctx.pop();
         Ok(result)
@@ -118,20 +167,16 @@ impl Typecheck for Apply {
 
 #[cfg(test)]
 mod tests {
-    use syntax::{Expr, Type};
+    use syntax::Expr;
     use super::*;
+    use super::Type::*;
 
     fn parse(expr: &str) -> Expr {
         ::syntax::parse(expr).expect(&format!("Failed to parse {}", expr))
     }
 
-    fn parse_type(type_: &str) -> Type {
-        ::syntax::parse_type(type_).expect(&format!("Failed to parse {}", type_))
-    }
-
-    fn assert_valid(expr: &str, type_: &str) {
+    fn assert_valid(expr: &str, type_: Type) {
         let expr = parse(expr);
-        let type_ = parse_type(type_);
         match typecheck(&expr) {
             Ok(t) => {
                 assert!(t == type_,
@@ -154,24 +199,24 @@ mod tests {
 
     #[test]
     fn test_arithmetics() {
-        assert_valid("92", "int");
-        assert_valid("true", "bool");
+        assert_valid("92", Int);
+        assert_valid("true", Bool);
 
-        assert_valid("1 + 1", "int");
+        assert_valid("1 + 1", Int);
         assert_fails("1 * true");
     }
 
     #[test]
     fn test_bools() {
-        assert_valid("1 < 1", "bool");
+        assert_valid("1 < 1", Bool);
         assert_fails("true == true");
         assert_fails("false > 92");
     }
 
     #[test]
     fn test_if() {
-        assert_valid("if 1 < 2 then 92 else 62", "int");
-        assert_valid("if true then false else true", "bool");
+        assert_valid("if 1 < 2 then 92 else 62", Int);
+        assert_valid("if true then false else true", Bool);
         assert_fails("if 1 + (1 == 2) then 92 else 62");
         assert_fails("if 1 then 92 else 62");
         assert_fails("if true then 92 else false");
@@ -179,7 +224,11 @@ mod tests {
 
     #[test]
     fn test_fun() {
-        assert_valid("fun id (x: int): int is x", "int -> int");
-        assert_valid("fun id (x: int): int is id x", "int -> int");
+        assert_valid("fun id (x: int): int is x", Int.maps_to(Int));
+        assert_valid("fun id (x: int): int is id x", Int.maps_to(Int));
+        assert_valid("(fun id (x: int): int is x) 92", Int);
+
+        assert_fails("fun id (x: int): int is y");
+        assert_fails("(fun id (x: int): int is x) true");
     }
 }

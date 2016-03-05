@@ -79,7 +79,7 @@ Fun: Expr = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => f
 Parens: Expr = "(" <Expr> ")";
 
 pub Type: Type = {
-    <fun:AtomType> "->" <arg:Type> => Type::Arrow(Rc::new(fun), Rc::new(arg)),
+    <fun:AtomType> "->" <arg:Type> => Type::arrow(fun, arg),
     AtomType,
 };
 

@@ -1,16 +1,15 @@
 use std::fmt;
-use std::rc::Rc;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq)]
 pub enum Type {
     Int,
     Bool,
-    Arrow(Rc<Type>, Rc<Type>),
+    Arrow(Box<Type>, Box<Type>),
 }
 
 impl Type {
-    pub fn arrow(arg: &Type, ret: &Type) -> Type {
-        Type::Arrow(Rc::new(arg.clone()), Rc::new(ret.clone()))
+    pub fn arrow(arg: Type, ret: Type) -> Type {
+        Type::Arrow(Box::new(arg), Box::new(ret))
     }
 }
 
