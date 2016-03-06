@@ -21,6 +21,7 @@ pub enum Instruction {
         frame: usize,
     },
     Call,
+    PopEnv,
 }
 
 pub type Name = usize;
@@ -37,6 +38,7 @@ impl fmt::Display for Instruction {
             Var(n) => write!(f, "var {}", n),
             Closure { name, arg, frame} => write!(f, "clos {} {} {}", name, arg, frame),
             Call => "call".fmt(f),
+            PopEnv => "ret".fmt(f),
         }
     }
 }

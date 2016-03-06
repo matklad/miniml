@@ -117,6 +117,14 @@ impl<'p> Machine<'p> {
     fn current_env(&self) -> &Env {
         self.environments.last().unwrap()
     }
+
+    fn pop_env(&mut self) -> Result<()> {
+        if self.environments.len() == 0 {
+            return Err(fatal_error("no environment"));
+        }
+        self.environments.pop();
+        Ok(())
+    }
 }
 
 trait Exec {
@@ -165,6 +173,7 @@ impl Exec for Instruction {
                 machine.environments.push(env);
                 return machine.switch_frame(frame);
             }
+            PopEnv => try!(machine.pop_env()),
         }
         Ok(())
     }
@@ -230,6 +239,7 @@ mod tests {
                     "eq" => Instruction::CmpInstruction(CmpInstruction::Eq),
                     "gt" => Instruction::CmpInstruction(CmpInstruction::Gt),
                     "call" => Instruction::Call,
+                    "ret" => Instruction::PopEnv,
                     "push" => {
                         match much_arg() {
                             "true" => Instruction::PushBool(true),
@@ -414,6 +424,7 @@ mod tests {
             var 1
             eq
             branch 2 3
+            ret
 
             push 1
 
@@ -440,14 +451,17 @@ mod tests {
             var 1
             var 1
             add
+            ret
 
             clos 2 3 3
+            ret
 
             var 1
             var 1
             var 3
             call
             call
+            ret
            ");
     }
 }
