@@ -7,7 +7,7 @@ mod program;
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    message: String,
+    pub message: String,
 }
 
 fn runtime_error(message: &str) -> RuntimeError {

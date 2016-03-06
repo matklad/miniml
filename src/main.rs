@@ -33,6 +33,12 @@ fn main() {
             Err(e) => return format!("Type error: {:?}", e),
             Ok(t) => t,
         };
-        format!("Type: {:?}", t)
+        let program = miniml::compile(&expr);
+        let mut machine = miniml::Machine::new(&program);
+        let result = match machine.exec() {
+            Err(e) => return format!("{}", e.message),
+            Ok(x) => x,
+        };
+        format!("{}", result)
     });
 }

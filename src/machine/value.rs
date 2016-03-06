@@ -52,12 +52,18 @@ impl From<bool> for Value<'static> {
     }
 }
 
-impl<'p> fmt::Debug for Value<'p> {
+impl<'p> fmt::Display for Value<'p> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Int(i) => i.fmt(f),
             Value::Bool(b) => b.fmt(f),
             Value::Closure(_) => "<closure>".fmt(f),
         }
+    }
+}
+
+impl<'p> fmt::Debug for Value<'p> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <Value as fmt::Display>::fmt(self, f)
     }
 }
