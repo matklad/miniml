@@ -24,5 +24,15 @@ fn repl<F: Fn(&str) -> String>(f: F) {
 }
 
 fn main() {
-    repl(|expr| format!("{:?}", miniml::parse(expr)))
+    repl(|expr| {
+        let expr = match miniml::parse(expr) {
+            Err(e) => return format!("Parse error: {:?}", e),
+            Ok(e) => e,
+        };
+        let t = match miniml::typecheck(&expr) {
+            Err(e) => return format!("Type error: {:?}", e),
+            Ok(t) => t,
+        };
+        format!("Type: {:?}", t)
+    });
 }
