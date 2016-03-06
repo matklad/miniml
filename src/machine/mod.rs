@@ -1,5 +1,6 @@
-use self::program::{Program, Instruction, ArithInstruction, CmpInstruction};
-pub use self::value::Value;
+use std::collections::HashMap;
+use self::program::{Program, Instruction, Name, ArithInstruction, CmpInstruction};
+pub use self::value::{Value, Closure};
 
 mod value;
 mod program;
@@ -24,15 +25,21 @@ type Activation<'p> = &'p [Instruction];
 #[derive(Debug)]
 pub struct Machine<'p> {
     program: &'p Program,
+    storage: Vec<Env>,
     values: Vec<Value>,
+    environments: Vec<Env>,
     activations: Vec<Activation<'p>>,
 }
+
+type Env = HashMap<Name, Value>;
 
 impl<'p> Machine<'p> {
     pub fn new(program: &'p Program) -> Self {
         Machine {
             program: program,
+            storage: vec![],
             values: vec![],
+            environments: vec![Env::new()],
             activations: vec![],
         }
     }
@@ -41,6 +48,8 @@ impl<'p> Machine<'p> {
         try!(self.switch_frame(0));
 
         while let Some(inst) = self.fetch_instruction() {
+            println!("\n{:?}", self.values);
+            println!("{}", inst);
             try!(inst.exec(self));
         }
 
@@ -72,11 +81,15 @@ impl<'p> Machine<'p> {
     }
 
     fn push_int(&mut self, value: i64) {
-        self.values.push(Value::Int(value))
+        self.push_value(Value::Int(value))
     }
 
     fn push_bool(&mut self, value: bool) {
-        self.values.push(Value::Bool(value))
+        self.push_value(Value::Bool(value))
+    }
+
+    fn push_value(&mut self, value: Value) {
+        self.values.push(value)
     }
 
     fn pop_int(&mut self) -> Result<i64> {
@@ -87,10 +100,22 @@ impl<'p> Machine<'p> {
         self.pop_value().and_then(|v| v.into_bool())
     }
 
+    fn pop_closure(&mut self) -> Result<Closure> {
+        self.pop_value().and_then(|v| v.into_closure())
+    }
+
     fn pop_value(&mut self) -> Result<Value> {
         self.values
             .pop()
             .ok_or(fatal_error("empty stack"))
+    }
+
+    fn lookup(&mut self, name: Name) -> Result<Value> {
+        self.current_env().get(&name).cloned().ok_or(fatal_error("undefined variable"))
+    }
+
+    fn current_env(&self) -> &Env {
+        self.environments.last().unwrap()
     }
 }
 
@@ -114,6 +139,31 @@ impl Exec for Instruction {
                     fls
                 };
                 return machine.switch_frame(jump);
+            }
+            Var(name) => {
+                let value = try!(machine.lookup(name));
+                machine.push_value(value);
+            }
+            Closure { name, arg, frame } => {
+                let mut env = machine.current_env().clone();
+                let env_idx = machine.storage.len();
+
+                let value = Value::Closure(value::Closure {
+                    arg: arg,
+                    frame: frame,
+                    env: env_idx,
+                });
+                env.insert(name, value);
+                machine.storage.push(env);
+                machine.push_value(value);
+            }
+            Call => {
+                let arg_value = try!(machine.pop_value());
+                let value::Closure { arg, frame, env } = try!(machine.pop_closure());
+                let mut env = machine.storage[env].clone();
+                env.insert(arg, arg_value);
+                machine.environments.push(env);
+                return machine.switch_frame(frame);
             }
         }
         Ok(())
@@ -179,6 +229,7 @@ mod tests {
                     "lt" => Instruction::CmpInstruction(CmpInstruction::Lt),
                     "eq" => Instruction::CmpInstruction(CmpInstruction::Eq),
                     "gt" => Instruction::CmpInstruction(CmpInstruction::Gt),
+                    "call" => Instruction::Call,
                     "push" => {
                         match much_arg() {
                             "true" => Instruction::PushBool(true),
@@ -186,11 +237,23 @@ mod tests {
                             s => Instruction::PushInt(i64::from_str(s).unwrap()),
                         }
                     }
+                    "var" => Instruction::Var(Name::from_str(much_arg()).unwrap()),
                     "branch" => {
                         let mut much_usize_arg = || usize::from_str(much_arg()).unwrap();
                         let tru = much_usize_arg();
                         let fls = much_usize_arg();
                         Instruction::Branch(tru, fls)
+                    }
+                    "clos" => {
+                        let mut munch_usize_arg = || usize::from_str(much_arg()).unwrap();
+                        let name = munch_usize_arg();
+                        let arg = munch_usize_arg();
+                        let frame = munch_usize_arg();
+                        Instruction::Closure {
+                            name: name,
+                            arg: arg,
+                            frame: frame,
+                        }
                     }
                     _ => panic!("Unknown op: {}", op),
                 }
@@ -324,5 +387,67 @@ mod tests {
             push 51");
 
         assert_fails("Fatal: illegal jump :(", "push true; branch 92 92");
+    }
+
+    #[test]
+    fn vars() {
+        assert_execs(92,
+                     "
+            clos 0 1 1
+            push 92
+            call
+
+            var 1
+           ");
+        assert_fails("Fatal: undefined variable :(", "var 92");
+    }
+
+    #[test]
+    fn factorial() {
+        assert_execs(120,
+                     "
+            clos 0 1 1
+            push 5
+            call
+
+            push 0
+            var 1
+            eq
+            branch 2 3
+
+            push 1
+
+            var 1
+            var 0
+            var 1
+            push 1
+            sub
+            call
+            mul
+           ");
+    }
+
+    #[test]
+    fn hof() {
+        assert_execs(92,
+                     "
+            clos 0 1 2
+            clos 0 1 1
+            call
+            push 23
+            call
+
+            var 1
+            var 1
+            add
+
+            clos 2 3 3
+
+            var 1
+            var 1
+            var 3
+            call
+            call
+           ");
     }
 }

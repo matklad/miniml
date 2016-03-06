@@ -14,7 +14,16 @@ pub enum Instruction {
     PushInt(i64),
     PushBool(bool),
     Branch(usize, usize),
+    Var(Name),
+    Closure {
+        name: Name,
+        arg: Name,
+        frame: usize,
+    },
+    Call,
 }
+
+pub type Name = usize;
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -25,6 +34,9 @@ impl fmt::Display for Instruction {
             PushInt(i) => write!(f, "push {}", i),
             PushBool(b) => write!(f, "push {}", b),
             Branch(l, r) => write!(f, "branch {} {}", l, r),
+            Var(n) => write!(f, "var {}", n),
+            Closure { name, arg, frame} => write!(f, "clos {} {} {}", name, arg, frame),
+            Call => "call".fmt(f),
         }
     }
 }
