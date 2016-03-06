@@ -1,23 +1,23 @@
 use std::fmt;
 
 use machine::{Result, fatal_error};
-use machine::program::Name;
+use machine::program::{Name, Frame};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Value {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Value<'p> {
     Int(i64),
     Bool(bool),
-    Closure(Closure),
+    Closure(Closure<'p>),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Closure {
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub struct Closure<'p> {
     pub arg: Name,
-    pub frame: usize,
+    pub frame: &'p Frame,
     pub env: usize,
 }
 
-impl Value {
+impl<'p> Value<'p> {
     pub fn into_int(self) -> Result<i64> {
         match self {
             Value::Int(i) => Ok(i),
@@ -32,7 +32,7 @@ impl Value {
         }
     }
 
-    pub fn into_closure(self) -> Result<Closure> {
+    pub fn into_closure(self) -> Result<Closure<'p>> {
         match self {
             Value::Closure(c) => Ok(c),
             _ => Err(fatal_error("runtime type error")),
@@ -40,19 +40,19 @@ impl Value {
     }
 }
 
-impl From<i64> for Value {
-    fn from(i: i64) -> Value {
+impl From<i64> for Value<'static> {
+    fn from(i: i64) -> Self {
         Value::Int(i)
     }
 }
 
-impl From<bool> for Value {
-    fn from(b: bool) -> Value {
+impl From<bool> for Value<'static> {
+    fn from(b: bool) -> Self {
         Value::Bool(b)
     }
 }
 
-impl fmt::Debug for Value {
+impl<'p> fmt::Debug for Value<'p> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Int(i) => i.fmt(f),

@@ -1,24 +1,19 @@
 use std::fmt;
 
-#[derive(Debug)]
-pub struct Program {
-    pub frames: Vec<Frame>,
-}
-
 pub type Frame = Vec<Instruction>;
 
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Instruction {
     ArithInstruction(ArithInstruction),
     CmpInstruction(CmpInstruction),
     PushInt(i64),
     PushBool(bool),
-    Branch(usize, usize),
+    Branch(Frame, Frame),
     Var(Name),
     Closure {
         name: Name,
         arg: Name,
-        frame: usize,
+        frame: Frame,
     },
     Call,
     PopEnv,
@@ -26,30 +21,7 @@ pub enum Instruction {
 
 pub type Name = usize;
 
-impl fmt::Display for Instruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Instruction::*;
-        match *self {
-            ArithInstruction(ref inst) => inst.fmt(f),
-            CmpInstruction(ref inst) => inst.fmt(f),
-            PushInt(i) => write!(f, "push {}", i),
-            PushBool(b) => write!(f, "push {}", b),
-            Branch(l, r) => write!(f, "branch {} {}", l, r),
-            Var(n) => write!(f, "var {}", n),
-            Closure { name, arg, frame} => write!(f, "clos {} {} {}", name, arg, frame),
-            Call => "call".fmt(f),
-            PopEnv => "ret".fmt(f),
-        }
-    }
-}
-
-impl fmt::Debug for Instruction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <Instruction as fmt::Display>::fmt(self, f)
-    }
-}
-
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ArithInstruction {
     Add,
     Sub,
@@ -69,7 +41,13 @@ impl fmt::Display for ArithInstruction {
     }
 }
 
-#[derive(Clone, Copy)]
+impl fmt::Debug for ArithInstruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <ArithInstruction as fmt::Display>::fmt(self, f)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum CmpInstruction {
     Lt,
     Eq,
@@ -84,5 +62,11 @@ impl fmt::Display for CmpInstruction {
             Eq => "eq",
             Gt => "gt",
         })
+    }
+}
+
+impl fmt::Debug for CmpInstruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        <CmpInstruction as fmt::Display>::fmt(self, f)
     }
 }
