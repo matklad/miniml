@@ -64,3 +64,38 @@ fun Fact(F: (int -> int)): (int -> int) is fun i(n: int): int is
     let mut machine = Machine::new(&program);
     assert_eq!(machine.exec().unwrap(), Value::Int(120));
 }
+
+#[test]
+fn fib_let() {
+    assert_execs(144,
+                 "let fun fib(n: int): int is
+                      if n == 0 then 1
+                      else if n == 1 then 1
+                      else fib (n - 1) + fib (n - 2)
+                  in fib 11");
+}
+
+#[test]
+fn fix_factorial_let() {
+    // Can't typecheck fixpoint combinator ;(
+    let fix_factorial = "
+let fun fix(F: (int -> int) -> (int -> int)): (int -> int) is
+    (fun a(x: int): int is (F fun b(n: int): int is (x x) n))
+     fun a(x: int): int is (F fun b(n: int): int is (x x) n)
+in let fun Fact(F: (int -> int)): (int -> int) is fun i(n: int): int is
+    if n == 0 then 1 else n * F (n - 1)
+in (fix Fact) 5
+";
+    let program = syntax::parse(&fix_factorial).unwrap();
+    let program = compile(&program);
+    let mut machine = Machine::new(&program);
+    assert_eq!(machine.exec().unwrap(), Value::Int(120));
+}
+
+#[test]
+fn let_shadowing() {
+    assert_execs(92,
+                 "let fun f(x: int): int is x * 2
+                  in let fun f(x: int): int is x + 2
+                  in f 90")
+}

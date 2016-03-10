@@ -1,5 +1,5 @@
 use Ident;
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun};
+use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun, LetFun};
 use super::types::Type;
 
 pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
@@ -29,7 +29,7 @@ pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
     .into()
 }
 
-pub fn fun_expr(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, body: Expr) -> Expr {
+pub fn fun(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, body: Expr) -> Fun {
     Fun {
         name: name,
         arg_name: arg_name,
@@ -37,7 +37,13 @@ pub fn fun_expr(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, bo
         fun_type: fun_type,
         body: body,
     }
-    .into()
+}
+
+pub fn let_fun_expr(fun: Fun, body: Expr) -> Expr {
+    LetFun {
+        fun: fun,
+        body: body,
+    }.into()
 }
 
 pub fn application(fun: Expr, arg: Expr) -> Expr {

@@ -53,6 +53,12 @@ fn test_good_fns() {
 }
 
 #[test]
+fn test_let_fn() {
+    assert_parses("let fun f(x: int): int is 92 in f 1",
+                  "(let f λ(x: int): int 92 in (f 1))")
+}
+
+#[test]
 fn test_bad_expressions() {
     you_shall_not_parse("((92)");
     you_shall_not_parse("1 == 1 == 1");

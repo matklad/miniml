@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::fmt;
 
-use syntax::{self, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, Apply};
+use syntax::{self, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, Apply};
 use context::{Context, StackContext};
 
 pub type Result = ::std::result::Result<Type, TypeError>;
@@ -96,6 +96,7 @@ impl Typecheck for Expr {
             CmpBinOp(ref op) => op.check(ctx),
             If(ref if_) => if_.check(ctx),
             Fun(ref fun) => fun.check(ctx),
+            LetFun(ref let_fun) => let_fun.check(ctx),
             Apply(ref apply) => apply.check(ctx),
         }
     }
@@ -148,6 +149,16 @@ impl Typecheck for Fun {
         ctx.push(&self.name, result.clone());
         try!(expect(&self.body, ret_type.clone(), ctx));
         ctx.pop();
+        ctx.pop();
+        Ok(result)
+    }
+}
+
+impl Typecheck for LetFun {
+    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+        let fun_type = try!(self.fun.check(ctx));
+        ctx.push(&self.fun.name, fun_type);
+        let result = try!(self.body.check(ctx));
         ctx.pop();
         Ok(result)
     }
@@ -230,5 +241,12 @@ mod tests {
 
         assert_fails("fun id (x: int): int is y");
         assert_fails("(fun id (x: int): int is x) true");
+    }
+
+    #[test]
+    fn test_let_fun() {
+        assert_valid("let fun inc (x: int): int is x + 1 in inc 92", Int);
+
+        assert_fails("let fun inc (x: int): int is x + 1 in inc inc");
     }
 }

@@ -10,6 +10,7 @@ pub enum Expr {
     CmpBinOp(Box<CmpBinOp>),
     If(Box<If>),
     Fun(Box<Fun>),
+    LetFun(Box<LetFun>),
     Apply(Box<Apply>),
 }
 
@@ -24,6 +25,7 @@ impl fmt::Debug for Expr {
             If(ref if_) => if_.fmt(f),
             Apply(ref apply) => apply.fmt(f),
             Fun(ref fun) => fun.fmt(f),
+            LetFun(ref let_fun) => let_fun.fmt(f),
         }
     }
 }
@@ -136,6 +138,29 @@ impl fmt::Debug for Fun {
     }
 }
 
+pub struct LetFun {
+    pub fun: Fun,
+    pub body: Expr,
+}
+
+impl Into<Expr> for LetFun {
+    fn into(self) -> Expr {
+        Expr::LetFun(Box::new(self))
+    }
+}
+
+impl fmt::Debug for LetFun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+        "(let {} λ({}: {:?}): {:?} {:?} in {:?})",
+        self.fun.name,
+        self.fun.arg_name,
+        self.fun.arg_type,
+        self.fun.fun_type,
+        self.fun.body,
+        self.body)
+    }
+}
 pub struct Apply {
     pub fun: Expr,
     pub arg: Expr,

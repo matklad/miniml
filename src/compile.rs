@@ -31,7 +31,8 @@ impl Compile for Expr {
             Expr::ArithBinOp(ref op) => op.compile(get_name),
             Expr::CmpBinOp(ref op) => op.compile(get_name),
             Expr::If(ref if_) => if_.compile(get_name),
-            Expr::Fun(ref fun_) => fun_.compile(get_name),
+            Expr::Fun(ref fun) => fun.compile(get_name),
+            Expr::LetFun(ref let_fun) => let_fun.compile(get_name),
             Expr::Apply(ref apply) => apply.compile(get_name),
         }
     }
@@ -66,6 +67,23 @@ impl Compile for syntax::Fun {
     }
 }
 
+impl Compile for syntax::LetFun {
+    fn compile<'a, F: FnMut(&'a str) -> usize>(&'a self, get_name: &mut F) -> Frame {
+        let mut fun = self.fun.compile(get_name);
+        let mut body = self.body.compile(get_name);
+        body.push(Instruction::PopEnv);
+        let mut result = vec![Instruction::Closure {
+                                  name: get_name("let_"),
+                                  arg: get_name(self.fun.name.as_ref()),
+                                  frame: body,
+                              }];
+
+        result.push(fun.pop().unwrap());
+        assert!(fun.is_empty());
+        result.push(Instruction::Call);
+        result
+    }
+}
 impl Compile for syntax::Apply {
     fn compile<'a, F: FnMut(&'a str) -> usize>(&'a self, get_name: &mut F) -> Frame {
         let mut result = self.fun.compile(get_name);

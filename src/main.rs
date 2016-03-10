@@ -29,9 +29,8 @@ fn execute(expr: &str) -> String {
         Err(e) => return format!("Parse error: {:?}", e),
         Ok(e) => e,
     };
-    let t = match miniml::typecheck(&expr) {
-        Err(e) => return format!("Type error: {:?}", e),
-        Ok(t) => t,
+    if let Err(e) = miniml::typecheck(&expr) {
+        return format!("Type error: {:?}", e);
     };
     let program = miniml::compile(&expr);
     let mut machine = miniml::Machine::new(&program);

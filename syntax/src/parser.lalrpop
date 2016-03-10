@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::rc::Rc;
 
 use Ident;
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal};
+use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal, Fun};
 use super::types::Type;
 use super::parser_util::*;
 
@@ -61,7 +61,8 @@ AppL : Expr = {
 
 TermR: Expr = {
     If,
-    Fun,
+    Fun => (<>).into(),
+    LetFun,
     TermL,
 };
 
@@ -74,7 +75,9 @@ TermL: Expr = {
 
 If:  Expr = "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>);
 
-Fun: Expr = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun_expr(<>);
+Fun: Fun = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun(<>);
+
+LetFun: Expr = "let" <Fun> "in" <Expr> => let_fun_expr(<>);
 
 Parens: Expr = "(" <Expr> ")";
 
