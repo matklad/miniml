@@ -99,3 +99,24 @@ fn let_shadowing() {
                   in let fun f(x: int): int is x + 2
                   in f 90")
 }
+
+#[test]
+fn mutual_recusion() {
+    let odd_even = "
+let fun F(odd: int -> bool): int -> (int -> bool) is
+  let fun odd(x: int): bool is if x == 0 then false else (F odd 1) (x - 1)
+  in let fun even(x: int): bool is if x == 0 then true else odd (x - 1)
+  in fun p(c: int): int -> bool is if c == 0 then odd else even
+in let fun bottom(x: int): bool is bottom x
+in let fun f(x: int): bool is F bottom {is_even} x
+in f {n}";
+
+    assert_execs(true,
+                 &odd_even.replace("{is_even}", "0").replace("{n}", "143"));
+    assert_execs(false,
+                 &odd_even.replace("{is_even}", "0").replace("{n}", "92"));
+    assert_execs(false,
+                 &odd_even.replace("{is_even}", "1").replace("{n}", "143"));
+    assert_execs(true,
+                 &odd_even.replace("{is_even}", "1").replace("{n}", "92"));
+}
