@@ -14,6 +14,16 @@ pub enum Expr {
     Apply(Box<Apply>),
 }
 
+macro_rules! into_expr {
+    ($id:ident) => {
+        impl Into<Expr> for $id {
+            fn into(self) -> Expr {
+                Expr::$id(Box::new(self))
+            }
+        }
+    }
+}
+
 impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Expr::*;
@@ -64,11 +74,7 @@ impl fmt::Debug for ArithOp {
 
 pub type ArithBinOp = BinOp<ArithOp>;
 
-impl Into<Expr> for ArithBinOp {
-    fn into(self) -> Expr {
-        Expr::ArithBinOp(Box::new(self))
-    }
-}
+into_expr!(ArithBinOp);
 
 #[derive(Clone, Copy)]
 pub enum CmpOp {
@@ -90,11 +96,7 @@ impl fmt::Debug for CmpOp {
 
 pub type CmpBinOp = BinOp<CmpOp>;
 
-impl Into<Expr> for CmpBinOp {
-    fn into(self) -> Expr {
-        Expr::CmpBinOp(Box::new(self))
-    }
-}
+into_expr!(CmpBinOp);
 
 pub struct If {
     pub cond: Expr,
@@ -102,15 +104,11 @@ pub struct If {
     pub fls: Expr,
 }
 
+into_expr!(If);
+
 impl fmt::Debug for If {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(if {:?} {:?} {:?})", self.cond, self.tru, self.fls)
-    }
-}
-
-impl Into<Expr> for If {
-    fn into(self) -> Expr {
-        Expr::If(Box::new(self))
     }
 }
 
@@ -122,11 +120,7 @@ pub struct Fun {
     pub body: Expr,
 }
 
-impl Into<Expr> for Fun {
-    fn into(self) -> Expr {
-        Expr::Fun(Box::new(self))
-    }
-}
+into_expr!(Fun);
 
 impl fmt::Debug for Fun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -145,11 +139,7 @@ pub struct LetFun {
     pub body: Expr,
 }
 
-impl Into<Expr> for LetFun {
-    fn into(self) -> Expr {
-        Expr::LetFun(Box::new(self))
-    }
-}
+into_expr!(LetFun);
 
 impl fmt::Debug for LetFun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -163,16 +153,13 @@ impl fmt::Debug for LetFun {
         self.body)
     }
 }
+
 pub struct Apply {
     pub fun: Expr,
     pub arg: Expr,
 }
 
-impl Into<Expr> for Apply {
-    fn into(self) -> Expr {
-        Expr::Apply(Box::new(self))
-    }
-}
+into_expr!(Apply);
 
 impl fmt::Debug for Apply {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
