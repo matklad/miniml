@@ -1,6 +1,6 @@
 use syntax::Expr;
 use machine::{Frame, Name, Instruction};
-use ir::{Ir, BinOp, If, Apply, Fun, LetFun, desugar};
+use ir::{Ir, BinOp, If, Apply, Fun, desugar};
 
 
 pub fn compile(expr: &Expr) -> Frame {
@@ -21,7 +21,6 @@ impl Compile for Ir {
             Ir::BinOp(ref op) => op.compile(),
             Ir::If(ref if_) => if_.compile(),
             Ir::Fun(ref fun) => fun.compile(),
-            Ir::LetFun(ref let_fun) => let_fun.compile(),
             Ir::Apply(ref apply) => apply.compile(),
         }
     }
@@ -67,14 +66,6 @@ fn make_closue(fun_name: Name, arg_name: Name, body: &Ir) -> Instruction {
 impl Compile for Fun {
     fn compile(&self) -> Frame {
         vec![make_closue(self.fun_name, self.arg_name, &self.body)]
-    }
-}
-
-impl Compile for LetFun {
-    fn compile(&self) -> Frame {
-        let fun = make_closue(self.fun_name, self.arg_name, &self.fun_body);
-        let expr = make_closue(0, self.fun_name, &self.expr);
-        vec![expr, fun, Instruction::Call]
     }
 }
 

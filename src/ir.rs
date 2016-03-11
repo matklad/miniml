@@ -10,7 +10,6 @@ pub enum Ir {
     BinOp(Box<BinOp>),
     If(Box<If>),
     Fun(Box<Fun>),
-    LetFun(Box<LetFun>),
     Apply(Box<Apply>),
 }
 
@@ -63,15 +62,6 @@ pub struct Fun {
 
 into_ir!(Fun);
 
-pub struct LetFun {
-    pub fun_name: Name,
-    pub arg_name: Name,
-    pub fun_body: Ir,
-    pub expr: Ir,
-}
-
-into_ir!(LetFun);
-
 pub struct Apply {
     pub fun: Ir,
     pub arg: Ir,
@@ -117,23 +107,8 @@ impl Sugar for Expr {
                 }
                 .into()
             }
-            Expr::Fun(ref fun) => {
-                Fun {
-                    fun_name: renamer.lookup(fun.name.as_ref()),
-                    arg_name: renamer.lookup(fun.arg_name.as_ref()),
-                    body: fun.body.desugar(renamer),
-                }
-                .into()
-            }
-            Expr::LetFun(ref let_fun) => {
-                LetFun {
-                    fun_name: renamer.lookup(let_fun.fun.name.as_ref()),
-                    arg_name: renamer.lookup(let_fun.fun.arg_name.as_ref()),
-                    fun_body: let_fun.fun.body.desugar(renamer),
-                    expr: let_fun.body.desugar(renamer),
-                }
-                .into()
-            }
+            Expr::Fun(ref fun) => fun.desugar(renamer),
+            Expr::LetFun(ref let_fun) => let_fun.desugar(renamer),
             Expr::Apply(ref apply) => {
                 Apply {
                     fun: apply.fun.desugar(renamer),
@@ -175,6 +150,34 @@ impl<OP> Sugar for syntax::BinOp<OP>
             lhs: self.lhs.desugar(renamer),
             rhs: self.rhs.desugar(renamer),
             kind: BinOpKind::from(self.kind),
+        }
+        .into()
+    }
+}
+
+impl Sugar for syntax::Fun {
+    fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
+        Fun {
+            fun_name: renamer.lookup(self.name.as_ref()),
+            arg_name: renamer.lookup(self.arg_name.as_ref()),
+            body: self.body.desugar(renamer),
+        }
+        .into()
+    }
+}
+
+impl Sugar for syntax::LetFun {
+    fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
+        let fun = self.fun.desugar(renamer);
+        let expr = self.body.desugar(renamer);
+        Apply {
+            fun: Fun {
+                     fun_name: 0,
+                     arg_name: renamer.lookup(self.fun.name.as_ref()),
+                     body: expr,
+                 }
+                 .into(),
+            arg: fun.into(),
         }
         .into()
     }
