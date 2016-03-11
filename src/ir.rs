@@ -85,6 +85,10 @@ impl<'a> Renamer<'a> {
         }
         self.names[name] * 2
     }
+
+    fn internal_name(&mut self) -> Name {
+        return 1;
+    }
 }
 
 trait Sugar {
@@ -172,7 +176,7 @@ impl Sugar for syntax::LetFun {
         let expr = self.body.desugar(renamer);
         Apply {
             fun: Fun {
-                     fun_name: 0,
+                     fun_name: renamer.internal_name(),
                      arg_name: renamer.lookup(self.fun.name.as_ref()),
                      body: expr,
                  }
