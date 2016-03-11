@@ -59,6 +59,13 @@ fn test_let_fn() {
 }
 
 #[test]
+fn test_let_rec() {
+    assert_parses("let rec fun a(x: int): int is b x
+                   and fun b(x: int): int is a x
+                   in a b 92",
+                  "(letrec [(λ a (x: int): int (b x))(λ b (x: int): int (a x))] in ((a b) 92))")
+}
+#[test]
 fn test_bad_expressions() {
     you_shall_not_parse("((92)");
     you_shall_not_parse("1 == 1 == 1");

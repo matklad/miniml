@@ -63,6 +63,7 @@ TermR: Expr = {
     If,
     Fun => (<>).into(),
     LetFun,
+    LetRec,
     TermL,
 };
 
@@ -78,6 +79,8 @@ If:  Expr = "if" <Expr> "then" <Expr> "else" <Expr> => if_expr(<>);
 Fun: Fun = "fun" <Ident> "(" <Ident> ":" <Type> ")" ":" <Type> "is" <Expr> => fun(<>);
 
 LetFun: Expr = "let" <Fun> "in" <Expr> => let_fun_expr(<>);
+
+LetRec: Expr = "let" "rec" <(<Fun> "and")*> <Fun> "in" <Expr> => let_rec_expr(<>);
 
 Parens: Expr = "(" <Expr> ")";
 

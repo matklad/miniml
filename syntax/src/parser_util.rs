@@ -1,5 +1,5 @@
 use Ident;
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun, LetFun};
+use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun, LetFun, LetRec};
 use super::types::Type;
 
 pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
@@ -42,6 +42,19 @@ pub fn fun(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, body: E
 pub fn let_fun_expr(fun: Fun, body: Expr) -> Expr {
     LetFun {
         fun: fun,
+        body: body,
+    }.into()
+}
+
+pub fn let_rec_expr(funs: Vec<Fun>, last_fun: Fun, body: Expr) -> Expr {
+    let funs = {
+        let mut funs = funs;
+        funs.push(last_fun);
+        funs
+    };
+
+    LetRec {
+        funs: funs,
         body: body,
     }.into()
 }

@@ -11,6 +11,7 @@ pub enum Expr {
     If(Box<If>),
     Fun(Box<Fun>),
     LetFun(Box<LetFun>),
+    LetRec(Box<LetRec>),
     Apply(Box<Apply>),
 }
 
@@ -36,6 +37,7 @@ impl fmt::Debug for Expr {
             Apply(ref apply) => apply.fmt(f),
             Fun(ref fun) => fun.fmt(f),
             LetFun(ref let_fun) => let_fun.fmt(f),
+            LetRec(ref let_rec) => let_rec.fmt(f),
         }
     }
 }
@@ -151,6 +153,23 @@ impl fmt::Debug for LetFun {
         self.fun.fun_type,
         self.fun.body,
         self.body)
+    }
+}
+
+pub struct LetRec {
+    pub funs: Vec<Fun>,
+    pub body: Expr,
+}
+
+into_expr!(LetRec);
+
+impl fmt::Debug for LetRec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(f, "(letrec ["));
+        for fun in &self.funs {
+            try!(write!(f, "{:?}", fun));
+        }
+        write!(f, "] in {:?})", self.body)
     }
 }
 
