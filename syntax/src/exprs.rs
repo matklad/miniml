@@ -42,6 +42,7 @@ impl<T: fmt::Debug> fmt::Debug for BinOp<T> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum ArithOp {
     Mul,
     Div,
@@ -69,6 +70,7 @@ impl Into<Expr> for ArithBinOp {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum CmpOp {
     Eq,
     Lt,

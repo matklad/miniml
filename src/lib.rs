@@ -6,6 +6,7 @@ pub use typecheck::typecheck;
 pub use machine::Machine;
 
 mod typecheck;
+mod ir;
 mod context;
 mod compile;
 mod machine;
