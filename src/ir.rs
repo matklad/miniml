@@ -120,6 +120,7 @@ impl Sugar for Expr {
                 }
                 .into()
             }
+            _ => unimplemented!(),
         }
     }
 }

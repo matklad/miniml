@@ -1,7 +1,8 @@
 use std::rc::Rc;
+use std::collections::HashSet;
 use std::fmt;
 
-use syntax::{self, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, Apply};
+use syntax::{self, Ident, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, LetRec, Apply};
 use context::TypeContext;
 
 pub type Result = ::std::result::Result<Type, TypeError>;
@@ -97,6 +98,7 @@ impl Typecheck for Expr {
             If(ref if_) => if_.check(ctx),
             Fun(ref fun) => fun.check(ctx),
             LetFun(ref let_fun) => let_fun.check(ctx),
+            LetRec(ref let_rec) => let_rec.check(ctx),
             Apply(ref apply) => apply.check(ctx),
         }
     }
@@ -142,14 +144,18 @@ impl Typecheck for If {
 
 impl Typecheck for Fun {
     fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
-        let arg_type = self.arg_type.as_type();
-        let ret_type = self.fun_type.as_type();
-        let result = arg_type.clone().maps_to(ret_type.clone());
-        try!(ctx.with_bindings(vec![(&self.arg_name, arg_type.clone()),
+        let result = fun_type(self);
+        try!(ctx.with_bindings(vec![(&self.arg_name, self.arg_type.as_type()),
                                     (&self.fun_name, result.clone())],
-                               |ctx| expect(&self.body, ret_type.clone(), ctx)));
+                               |ctx| expect(&self.body, self.fun_type.as_type(), ctx)));
         Ok(result)
     }
+}
+
+fn fun_type(f: &Fun) -> Type {
+    let arg_type = f.arg_type.as_type();
+    let ret_type = f.fun_type.as_type();
+    arg_type.clone().maps_to(ret_type.clone())
 }
 
 impl Typecheck for LetFun {
@@ -158,6 +164,26 @@ impl Typecheck for LetFun {
         ctx.with_bindings(vec![(&self.fun.fun_name, fun_type)],
                           |ctx| self.body.check(ctx))
     }
+}
+
+impl Typecheck for LetRec {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
+        let bindings = try!(collect_bindings(&self.funs));
+        ctx.with_bindings(bindings, |ctx| {
+            for fun in &self.funs {
+                try!(fun.check(ctx));
+            }
+            self.body.check(ctx)
+        })
+    }
+}
+
+fn collect_bindings(funs: &[Fun]) -> ::std::result::Result<Vec<(&Ident, Type)>, TypeError> {
+    let names = funs.iter().map(|fun| &fun.fun_name).collect::<HashSet<_>>();
+    if names.len() != funs.len() {
+        return bail!("Duplicate definitions in letrec: {:?}", funs);
+    }
+    Ok(funs.iter().map(|f| (&f.fun_name, fun_type(f))).collect())
 }
 
 impl Typecheck for Apply {
@@ -244,5 +270,14 @@ mod tests {
         assert_valid("let fun inc (x: int): int is x + 1 in inc 92", Int);
 
         assert_fails("let fun inc (x: int): int is x + 1 in inc inc");
+    }
+
+    #[test]
+    fn test_let_rec() {
+        assert_valid("let rec fun a(x: int): int is b (a (b 1))
+                      and fun b(x: int): int is (a (b (a 1)))
+                      in (a (a (b (b 1))))",
+                     Int);
+
     }
 }
