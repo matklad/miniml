@@ -70,7 +70,7 @@ macro_rules! bail {
     };
 }
 
-fn expect<'c, C: Context<'c, Type>>(expr: &'c Expr, type_: Type, ctx: &mut C) -> Result {
+fn expect<'c, C: Context<'c, Item = Type>>(expr: &'c Expr, type_: Type, ctx: &mut C) -> Result {
     let t = try!(expr.check(ctx));
     if t != type_ {
         bail!("Expected {:?}, got {:?}", type_, t);
@@ -79,11 +79,11 @@ fn expect<'c, C: Context<'c, Type>>(expr: &'c Expr, type_: Type, ctx: &mut C) ->
 }
 
 trait Typecheck {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result;
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result;
 }
 
 impl Typecheck for Expr {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         use syntax::Expr::*;
         match *self {
             Var(ref ident) => {
@@ -103,7 +103,7 @@ impl Typecheck for Expr {
 }
 
 impl Typecheck for Literal {
-    fn check<'c, C: Context<'c, Type>>(&'c self, _: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, _: &mut C) -> Result {
         let t = match *self {
             Literal::Number(_) => Int,
             Literal::Bool(_) => Bool,
@@ -113,7 +113,7 @@ impl Typecheck for Literal {
 }
 
 impl Typecheck for ArithBinOp {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         try!(expect(&self.lhs, Int, ctx));
         try!(expect(&self.rhs, Int, ctx));
         Ok(Int)
@@ -121,7 +121,7 @@ impl Typecheck for ArithBinOp {
 }
 
 impl Typecheck for CmpBinOp {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         try!(expect(&self.lhs, Int, ctx));
         try!(expect(&self.rhs, Int, ctx));
         Ok(Bool)
@@ -129,7 +129,7 @@ impl Typecheck for CmpBinOp {
 }
 
 impl Typecheck for If {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         try!(expect(&self.cond, Bool, ctx));
         let t1 = try!(self.tru.check(ctx));
         let t2 = try!(self.fls.check(ctx));
@@ -141,7 +141,7 @@ impl Typecheck for If {
 }
 
 impl Typecheck for Fun {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         let arg_type = self.arg_type.as_type();
         let ret_type = self.fun_type.as_type();
         let result = arg_type.clone().maps_to(ret_type.clone());
@@ -155,7 +155,7 @@ impl Typecheck for Fun {
 }
 
 impl Typecheck for LetFun {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         let fun_type = try!(self.fun.check(ctx));
         ctx.push(&self.fun.name, fun_type);
         let result = try!(self.body.check(ctx));
@@ -165,7 +165,7 @@ impl Typecheck for LetFun {
 }
 
 impl Typecheck for Apply {
-    fn check<'c, C: Context<'c, Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
         match try!(self.fun.check(ctx)) {
             Type::Arrow(arg, ret) => {
                 try!(expect(&self.arg, arg.as_ref().clone(), ctx));
