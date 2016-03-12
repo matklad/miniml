@@ -31,7 +31,7 @@ pub fn if_expr(cond: Expr, tru: Expr, fls: Expr) -> Expr {
 
 pub fn fun(name: Ident, arg_name: Ident, arg_type: Type, fun_type: Type, body: Expr) -> Fun {
     Fun {
-        name: name,
+        fun_name: name,
         arg_name: arg_name,
         arg_type: arg_type,
         fun_type: fun_type,

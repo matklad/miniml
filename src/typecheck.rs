@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::fmt;
 
 use syntax::{self, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, Apply};
-use context::{Context, StackContext};
+use context::TypeContext;
 
 pub type Result = ::std::result::Result<Type, TypeError>;
 
@@ -56,7 +56,7 @@ impl fmt::Debug for Type {
 }
 
 pub fn typecheck(expr: &Expr) -> Result {
-    let mut ctx = StackContext::new();
+    let mut ctx = TypeContext::empty();
     expr.check(&mut ctx)
 }
 
@@ -70,7 +70,7 @@ macro_rules! bail {
     };
 }
 
-fn expect<'c, C: Context<'c, Item = Type>>(expr: &'c Expr, type_: Type, ctx: &mut C) -> Result {
+fn expect<'c>(expr: &'c Expr, type_: Type, ctx: &mut TypeContext<'c>) -> Result {
     let t = try!(expr.check(ctx));
     if t != type_ {
         bail!("Expected {:?}, got {:?}", type_, t);
@@ -79,11 +79,11 @@ fn expect<'c, C: Context<'c, Item = Type>>(expr: &'c Expr, type_: Type, ctx: &mu
 }
 
 trait Typecheck {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result;
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result;
 }
 
 impl Typecheck for Expr {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         use syntax::Expr::*;
         match *self {
             Var(ref ident) => {
@@ -103,7 +103,7 @@ impl Typecheck for Expr {
 }
 
 impl Typecheck for Literal {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, _: &mut C) -> Result {
+    fn check<'c>(&'c self, _: &mut TypeContext<'c>) -> Result {
         let t = match *self {
             Literal::Number(_) => Int,
             Literal::Bool(_) => Bool,
@@ -113,7 +113,7 @@ impl Typecheck for Literal {
 }
 
 impl Typecheck for ArithBinOp {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         try!(expect(&self.lhs, Int, ctx));
         try!(expect(&self.rhs, Int, ctx));
         Ok(Int)
@@ -121,7 +121,7 @@ impl Typecheck for ArithBinOp {
 }
 
 impl Typecheck for CmpBinOp {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         try!(expect(&self.lhs, Int, ctx));
         try!(expect(&self.rhs, Int, ctx));
         Ok(Bool)
@@ -129,7 +129,7 @@ impl Typecheck for CmpBinOp {
 }
 
 impl Typecheck for If {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         try!(expect(&self.cond, Bool, ctx));
         let t1 = try!(self.tru.check(ctx));
         let t2 = try!(self.fls.check(ctx));
@@ -141,31 +141,27 @@ impl Typecheck for If {
 }
 
 impl Typecheck for Fun {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         let arg_type = self.arg_type.as_type();
         let ret_type = self.fun_type.as_type();
         let result = arg_type.clone().maps_to(ret_type.clone());
-        ctx.push(&self.arg_name, arg_type.clone());
-        ctx.push(&self.name, result.clone());
-        try!(expect(&self.body, ret_type.clone(), ctx));
-        ctx.pop();
-        ctx.pop();
+        try!(ctx.with_bindings(vec![(&self.arg_name, arg_type.clone()),
+                                    (&self.fun_name, result.clone())],
+                               |ctx| expect(&self.body, ret_type.clone(), ctx)));
         Ok(result)
     }
 }
 
 impl Typecheck for LetFun {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         let fun_type = try!(self.fun.check(ctx));
-        ctx.push(&self.fun.name, fun_type);
-        let result = try!(self.body.check(ctx));
-        ctx.pop();
-        Ok(result)
+        ctx.with_bindings(vec![(&self.fun.fun_name, fun_type)],
+                          |ctx| self.body.check(ctx))
     }
 }
 
 impl Typecheck for Apply {
-    fn check<'c, C: Context<'c, Item = Type>>(&'c self, ctx: &mut C) -> Result {
+    fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
         match try!(self.fun.check(ctx)) {
             Type::Arrow(arg, ret) => {
                 try!(expect(&self.arg, arg.as_ref().clone(), ctx));

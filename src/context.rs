@@ -1,32 +1,25 @@
 use syntax::Ident;
+use typecheck::Type;
 
-pub trait Context<'a> {
-    type Item;
+pub struct TypeContext<'a>(Vec<(&'a Ident, Type)>);
 
-    fn empty() -> Self;
-    fn lookup(&self, name: &Ident) -> Option<&Self::Item>;
-    fn push(&mut self, name: &'a Ident, value: Self::Item);
-    fn pop(&mut self);
-}
-
-pub type StackContext<'a, T> = Vec<(&'a Ident, T)>;
-
-impl<'a, T> Context<'a> for StackContext<'a, T> {
-    type Item = T;
-
-    fn empty() -> Self {
-        Vec::new()
+impl<'a> TypeContext<'a> {
+    pub fn empty() -> Self {
+        TypeContext(Vec::new())
     }
 
-    fn lookup(&self, name: &Ident) -> Option<&Self::Item> {
-        self.iter().rev().find(|&&(ident, _)| ident == name).map(|&(_, ref val)| val)
+    pub fn lookup(&self, name: &Ident) -> Option<&Type> {
+        self.0.iter().rev().find(|&&(ident, _)| ident == name).map(|&(_, ref val)| val)
     }
 
-    fn push(&mut self, name: &'a Ident, value: Self::Item) {
-        self.push((name, value));
-    }
-
-    fn pop(&mut self) {
-        self.pop().unwrap();
+    pub fn with_bindings<R, F, I>(&mut self, bindings: I, f: F) -> R
+        where F: FnOnce(&mut TypeContext<'a>) -> R,
+              I: IntoIterator<Item = (&'a Ident, Type)>
+    {
+        let old_bindings = self.0.len();
+        self.0.extend(bindings.into_iter());
+        let result = f(self);
+        self.0.truncate(old_bindings);
+        result
     }
 }

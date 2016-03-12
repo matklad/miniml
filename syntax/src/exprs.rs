@@ -113,7 +113,7 @@ impl fmt::Debug for If {
 }
 
 pub struct Fun {
-    pub name: Ident,
+    pub fun_name: Ident,
     pub arg_name: Ident,
     pub arg_type: Type,
     pub fun_type: Type,
@@ -126,7 +126,7 @@ impl fmt::Debug for Fun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                "(λ {} ({}: {:?}): {:?} {:?})",
-               self.name,
+               self.fun_name,
                self.arg_name,
                self.arg_type,
                self.fun_type,
@@ -145,7 +145,7 @@ impl fmt::Debug for LetFun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
         "(let {} λ({}: {:?}): {:?} {:?} in {:?})",
-        self.fun.name,
+        self.fun.fun_name,
         self.fun.arg_name,
         self.fun.arg_type,
         self.fun.fun_type,

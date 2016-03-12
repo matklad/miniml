@@ -162,7 +162,7 @@ impl<OP> Sugar for syntax::BinOp<OP>
 impl Sugar for syntax::Fun {
     fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
         Fun {
-            fun_name: renamer.lookup(self.name.as_ref()),
+            fun_name: renamer.lookup(self.fun_name.as_ref()),
             arg_name: renamer.lookup(self.arg_name.as_ref()),
             body: self.body.desugar(renamer),
         }
@@ -177,7 +177,7 @@ impl Sugar for syntax::LetFun {
         Apply {
             fun: Fun {
                      fun_name: renamer.internal_name(),
-                     arg_name: renamer.lookup(self.fun.name.as_ref()),
+                     arg_name: renamer.lookup(self.fun.fun_name.as_ref()),
                      body: expr,
                  }
                  .into(),
