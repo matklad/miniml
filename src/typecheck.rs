@@ -74,7 +74,7 @@ macro_rules! bail {
 fn expect<'c>(expr: &'c Expr, type_: Type, ctx: &mut TypeContext<'c>) -> Result {
     let t = try!(expr.check(ctx));
     if t != type_ {
-        bail!("Expected {:?}, got {:?}", type_, t);
+        bail!("Expected {:?}, got {:?} in {:?}", type_, t, expr);
     }
     Ok(type_)
 }

@@ -120,3 +120,87 @@ in f {n}";
     assert_execs(true,
                  &odd_even.replace("{is_even}", "1").replace("{n}", "92"));
 }
+
+#[test]
+fn mutual_recusion2() {
+    let odd_even = "
+let fun F(d: int -> (int -> bool)): int -> (int -> bool) is
+  let    fun odd (x: int): bool is
+      let fun dd(x:int): int -> bool is if x == 0 then odd else d x in
+      let fun even(x: int): bool is (F dd 1 x) in
+      if x == 0 then false else even (x - 1)
+  in let fun even(x: int): bool is
+      let fun dd(x:int): int -> bool is if x == 1 then even else d x in
+      let fun odd (x: int): bool is (F dd 0 x) in
+      if x == 0 then true else odd (x - 1)
+  in fun d(c: int): int -> bool is if c == 0 then odd else even
+in let fun bottom(x: int): int -> bool is bottom x
+in let fun f(x: int): bool is F bottom {is_even} x
+in f {n}";
+
+    assert_execs(true,
+                 &odd_even.replace("{is_even}", "0").replace("{n}", "143"));
+    assert_execs(false,
+                 &odd_even.replace("{is_even}", "0").replace("{n}", "92"));
+    assert_execs(false,
+                 &odd_even.replace("{is_even}", "1").replace("{n}", "143"));
+    assert_execs(true,
+                 &odd_even.replace("{is_even}", "1").replace("{n}", "92"));
+}
+
+#[test]
+fn mutual_recutsion3() {
+    let odd_even = "
+let fun f(tag: int): int -> bool is
+    if tag == 0
+    then
+      let fun even(n: int): bool is f 1 n in
+      fun odd(n: int): bool is if n == 0 then false else even (n - 1)
+
+    else if tag == 1
+    then
+      let fun odd(n: int): bool is f 0 n in
+      fun even(n: int): bool is if n == 0 then true else odd (n - 1)
+
+    else fun undefined(n: int): bool is 0 / 0 == 0 / 0
+in let fun odd(n: int): bool is f 0 n
+in let fun even(n: int): bool is f 1 n
+in {fun} {n}";
+
+    assert_execs(true,
+                 &odd_even.replace("{fun}", "odd").replace("{n}", "143"));
+    assert_execs(false,
+                 &odd_even.replace("{fun}", "odd").replace("{n}", "92"));
+    assert_execs(false,
+                 &odd_even.replace("{fun}", "even").replace("{n}", "143"));
+    assert_execs(true,
+                 &odd_even.replace("{fun}", "even").replace("{n}", "92"));
+}
+
+#[test]
+fn let_rec() {
+    let odd_even = "
+let rec fun odd(n: int): bool is if n == 0 then false else even (n - 1)
+and fun even(n: int): bool is if n == 0 then true else odd (n - 1)
+in {fun} {n}";
+    assert_execs(true,
+                 &odd_even.replace("{fun}", "odd").replace("{n}", "143"));
+    assert_execs(false,
+                 &odd_even.replace("{fun}", "odd").replace("{n}", "92"));
+    assert_execs(false,
+                 &odd_even.replace("{fun}", "even").replace("{n}", "143"));
+    assert_execs(true,
+                 &odd_even.replace("{fun}", "even").replace("{n}", "92"));
+}
+
+#[test]
+fn let_rec_different_types() {
+    let code = "
+let rec fun div_by_3(n: int): bool is if n == 0 then true else mod_3 (n - 1) == 2
+and fun mod_3(n: int): int is if div_by_3 n then 0 else if div_by_3 (n - 1) then 1 else 2
+in mod_3 {n}
+";
+    for n in 0..10 {
+        assert_execs(n % 3, &code.replace("{n}", &n.to_string()))
+    }
+}

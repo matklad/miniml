@@ -85,10 +85,6 @@ impl<'a> Renamer<'a> {
         }
         self.names[name] * 2
     }
-
-    fn internal_name(&mut self) -> Name {
-        return 1;
-    }
 }
 
 trait Sugar {
@@ -113,6 +109,7 @@ impl Sugar for Expr {
             }
             Expr::Fun(ref fun) => fun.desugar(renamer),
             Expr::LetFun(ref let_fun) => let_fun.desugar(renamer),
+            Expr::LetRec(ref let_rec) => let_rec.desugar(renamer),
             Expr::Apply(ref apply) => {
                 Apply {
                     fun: apply.fun.desugar(renamer),
@@ -120,7 +117,6 @@ impl Sugar for Expr {
                 }
                 .into()
             }
-            _ => unimplemented!(),
         }
     }
 }
@@ -162,12 +158,15 @@ impl<OP> Sugar for syntax::BinOp<OP>
 
 impl Sugar for syntax::Fun {
     fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
-        Fun {
-            fun_name: renamer.lookup(self.fun_name.as_ref()),
-            arg_name: renamer.lookup(self.arg_name.as_ref()),
-            body: self.body.desugar(renamer),
-        }
-        .into()
+        desugar_fun(self, renamer).into()
+    }
+}
+
+fn desugar_fun<'e>(fun: &'e syntax::Fun, renamer: &mut Renamer<'e>) -> Fun {
+    Fun {
+        fun_name: renamer.lookup(fun.fun_name.as_ref()),
+        arg_name: renamer.lookup(fun.arg_name.as_ref()),
+        body: fun.body.desugar(renamer),
     }
 }
 
@@ -177,12 +176,145 @@ impl Sugar for syntax::LetFun {
         let expr = self.body.desugar(renamer);
         Apply {
             fun: Fun {
-                     fun_name: renamer.internal_name(),
+                     fun_name: 1,
                      arg_name: renamer.lookup(self.fun.fun_name.as_ref()),
                      body: expr,
                  }
                  .into(),
             arg: fun.into(),
+        }
+        .into()
+    }
+}
+
+impl Sugar for syntax::LetRec {
+    // See tests `mutual_recursion3` for an example of transform.
+    // On a high level, we convert a set of mutually recursive functions into a single function of
+    // two arguments, the first of which is a tag
+    fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
+        let funs = self.funs.iter().map(|fun| desugar_fun(fun, renamer)).collect::<Vec<_>>();
+        let fun_names = funs.iter().map(|fun| fun.fun_name).collect::<Vec<_>>();
+
+        let dispatch_arg = 5;
+        let dispatch_if = {
+            let mut result = undefined();
+            for (i, fun) in funs.into_iter().enumerate() {
+                let my_tag = i as i64;
+                let dispatch_arg = Ir::Var(dispatch_arg);
+                result = if_eq(dispatch_arg,
+                               Ir::IntLiteral(my_tag),
+                               fun_wrapper(my_tag, fun, &fun_names),
+                               result)
+            }
+            result
+        };
+        let anon_name = 1;
+        let dispatch_name = 3;
+        let dispatch_fun: Ir = Fun {
+                                   fun_name: dispatch_name,
+                                   arg_name: dispatch_arg,
+                                   body: dispatch_if,
+                               }
+                               .into();
+
+        let mut result = self.body.desugar(renamer);
+        for (i, name) in fun_names.into_iter().enumerate() {
+            let f: Ir = Fun {
+                            fun_name: anon_name,
+                            arg_name: name,
+                            body: result,
+                        }
+                        .into();
+            result = f.apply(Ir::Var(dispatch_name).apply(Ir::IntLiteral(i as i64)))
+        }
+
+        let f: Ir = Fun {
+                        fun_name: anon_name,
+                        arg_name: dispatch_name,
+                        body: result,
+                    }
+                    .into();
+        f.apply(dispatch_fun)
+    }
+}
+
+fn fun_wrapper(my_tag: i64, fun: Fun, fun_names: &[Name]) -> Ir {
+
+    let mut bindins = vec![];
+    let dispatch_name = 3;
+    for (i, &name) in fun_names.iter().enumerate() {
+        let fun_tag = i as i64;
+        if fun_tag == my_tag {
+            continue;
+        }
+        let x = 1;
+        bindins.push(Fun {
+            fun_name: name,
+            arg_name: x,
+            body: Ir::Var(dispatch_name)
+                      .apply(Ir::IntLiteral(fun_tag))
+                      .apply(Ir::Var(x)),
+        })
+    }
+
+    Fun {
+        fun_name: fun.fun_name,
+        arg_name: fun.arg_name,
+        body: lets(bindins, fun.body),
+    }
+    .into()
+}
+
+fn if_eq(lhs: Ir, rhs: Ir, tru: Ir, fls: Ir) -> Ir {
+    If {
+        cond: BinOp {
+                  lhs: lhs,
+                  rhs: rhs,
+                  kind: BinOpKind::Eq,
+              }
+              .into(),
+        tru: tru,
+        fls: fls,
+    }
+    .into()
+}
+
+fn lets(mut bindings: Vec<Fun>, body: Ir) -> Ir {
+    if let Some(head) = bindings.pop() {
+        lets(bindings, let_(head, body))
+    } else {
+        body
+    }
+}
+
+fn let_(fun: Fun, body: Ir) -> Ir {
+    Apply {
+        fun: Fun {
+                 fun_name: 1,
+                 arg_name: fun.fun_name,
+                 body: body,
+             }
+             .into(),
+        arg: fun.into(),
+    }
+    .into()
+
+}
+
+fn undefined() -> Ir {
+    BinOp {
+        lhs: Ir::IntLiteral(0),
+        rhs: Ir::IntLiteral(0),
+        kind: BinOpKind::Div,
+    }
+    .into()
+}
+
+impl Ir {
+    fn apply<I: Into<Ir>>(self, arg: I) -> Ir {
+        Apply {
+            fun: self,
+            arg: arg.into(),
         }
         .into()
     }
