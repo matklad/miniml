@@ -45,10 +45,14 @@ impl<'p> Machine<'p> {
     }
 
     pub fn exec(&mut self) -> Result<Value<'p>> {
+        let mut step = 0;
         while let Some(inst) = self.fetch_instruction() {
+            step += 1;
             try!(inst.exec(self));
+            if step % 92 == 0 {
+                self.gc()
+            }
         }
-
         self.pop_value().and_then(|result| {
             if !self.values.is_empty() {
                 return Err(fatal_error("more then one value on stack left"));
@@ -117,6 +121,63 @@ impl<'p> Machine<'p> {
         self.environments.pop();
         Ok(())
     }
+
+    fn gc(&mut self) {
+        let mut moved: HashMap<usize, usize> = HashMap::new();
+
+        let mut initial_work: Vec<&mut Value<'p>> = self.values.iter_mut().collect();
+        initial_work.extend(self.environments.iter_mut().flat_map(|env|
+            env.iter_mut().map(|(_key, value)| value)
+        ));
+
+        let mut new_storage = collect(initial_work, &mut moved, &mut self.storage, 0);
+        let mut done = 0;
+        loop {
+            let move_index = new_storage.len();
+            let wave = {
+                let work = new_storage[done..].iter_mut().flat_map(|env|
+                    env.iter_mut().map(|(_key, value)| value)
+                ).collect();
+                collect(work, &mut moved, &mut self.storage, move_index)
+            };
+
+            if wave.is_empty() {
+                break;
+            }
+            done = new_storage.len();
+            new_storage.extend(wave.into_iter());
+        }
+
+        assert!(new_storage.len() <= self.storage.len());
+
+        self.storage = new_storage
+    }
+}
+
+fn collect<'p>(work: Vec<&mut Value<'p>>,
+               move_map: &mut HashMap<usize, usize>,
+               old_envs: &mut [Env<'p>],
+               start_index: usize,
+) -> Vec<Env<'p>> {
+    let mut wave: Vec<Env<'p>> = vec![];
+    for value in work {
+        if let Value::Closure(ref mut closure) = *value {
+            if let Some(&new_index) = move_map.get(&closure.env) {
+                closure.env = new_index
+            } else {
+                let new_index = start_index + wave.len();
+                move_map.insert(closure.env, new_index);
+
+                let mut new_env = HashMap::new();
+                ::std::mem::swap(&mut new_env, &mut old_envs[closure.env]);
+
+                closure.env = new_index;
+                wave.push(new_env);
+            }
+        }
+    }
+
+    wave
 }
 
 trait Exec {
