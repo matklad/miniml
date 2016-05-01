@@ -8,4 +8,5 @@ build = "build.rs"
 lalrpop = "0.11.0"
 
 [dependencies]
+ast = { path = "../ast" }
 lalrpop-util = "0.11.0"

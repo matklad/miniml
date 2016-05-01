@@ -1,3 +1,4 @@
+extern crate ast;
 extern crate syntax;
 
 pub use syntax::parse;

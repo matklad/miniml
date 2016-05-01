@@ -1,9 +1,7 @@
 use std::str::FromStr;
 use std::rc::Rc;
 
-use Ident;
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal, Fun};
-use super::types::Type;
+use ast::{Ident, Type, Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, Literal, Fun};
 use super::parser_util::*;
 
 grammar["LALR(1)"];

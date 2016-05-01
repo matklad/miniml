@@ -127,12 +127,12 @@ into_expr!(Fun);
 impl fmt::Debug for Fun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "(λ {} ({}: {:?}): {:?} {:?})",
-               self.fun_name,
-               self.arg_name,
-               self.arg_type,
-               self.fun_type,
-               self.body)
+        "(λ {} ({}: {:?}): {:?} {:?})",
+        self.fun_name,
+        self.arg_name,
+        self.arg_type,
+        self.fun_type,
+        self.body)
     }
 }
 

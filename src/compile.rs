@@ -1,4 +1,4 @@
-use syntax::Expr;
+use ast::Expr;
 use machine::{Frame, Name, Instruction};
 use ir::{Ir, BinOp, If, Apply, Fun, desugar};
 

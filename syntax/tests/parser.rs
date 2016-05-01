@@ -1,6 +1,9 @@
 extern crate syntax;
+extern crate ast;
 
-use syntax::{parse, Expr};
+use ast::Expr;
+use syntax::parse;
+
 
 
 fn assert_parses(expr: &str, ast: &str) {

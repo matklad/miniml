@@ -1,4 +1,4 @@
-use syntax::Ident;
+use ast::Ident;
 use typecheck::Type;
 
 pub struct TypeContext<'a>(Vec<(&'a Ident, Type)>);

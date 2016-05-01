@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use syntax::{self, Expr};
+use ast::{self, Expr};
 
 pub type Name = usize;
 
@@ -95,8 +95,8 @@ impl Sugar for Expr {
     fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
         match *self {
             Expr::Var(ref v) => Ir::Var(renamer.lookup(v.as_ref())),
-            Expr::Literal(syntax::Literal::Number(n)) => Ir::IntLiteral(n),
-            Expr::Literal(syntax::Literal::Bool(b)) => Ir::BoolLiteral(b),
+            Expr::Literal(ast::Literal::Number(n)) => Ir::IntLiteral(n),
+            Expr::Literal(ast::Literal::Bool(b)) => Ir::BoolLiteral(b),
             Expr::ArithBinOp(ref op) => op.desugar(renamer),
             Expr::CmpBinOp(ref op) => op.desugar(renamer),
             Expr::If(ref if_) => {
@@ -121,28 +121,28 @@ impl Sugar for Expr {
     }
 }
 
-impl From<syntax::ArithOp> for BinOpKind {
-    fn from(op: syntax::ArithOp) -> Self {
+impl From<ast::ArithOp> for BinOpKind {
+    fn from(op: ast::ArithOp) -> Self {
         match op {
-            syntax::ArithOp::Add => BinOpKind::Add,
-            syntax::ArithOp::Sub => BinOpKind::Sub,
-            syntax::ArithOp::Mul => BinOpKind::Mul,
-            syntax::ArithOp::Div => BinOpKind::Div,
+            ast::ArithOp::Add => BinOpKind::Add,
+            ast::ArithOp::Sub => BinOpKind::Sub,
+            ast::ArithOp::Mul => BinOpKind::Mul,
+            ast::ArithOp::Div => BinOpKind::Div,
         }
     }
 }
 
-impl From<syntax::CmpOp> for BinOpKind {
-    fn from(op: syntax::CmpOp) -> Self {
+impl From<ast::CmpOp> for BinOpKind {
+    fn from(op: ast::CmpOp) -> Self {
         match op {
-            syntax::CmpOp::Lt => BinOpKind::Lt,
-            syntax::CmpOp::Eq => BinOpKind::Eq,
-            syntax::CmpOp::Gt => BinOpKind::Gt,
+            ast::CmpOp::Lt => BinOpKind::Lt,
+            ast::CmpOp::Eq => BinOpKind::Eq,
+            ast::CmpOp::Gt => BinOpKind::Gt,
         }
     }
 }
 
-impl<OP> Sugar for syntax::BinOp<OP>
+impl<OP> Sugar for ast::BinOp<OP>
     where BinOpKind: From<OP>,
           OP: Copy
 {
@@ -156,13 +156,13 @@ impl<OP> Sugar for syntax::BinOp<OP>
     }
 }
 
-impl Sugar for syntax::Fun {
+impl Sugar for ast::Fun {
     fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
         desugar_fun(self, renamer).into()
     }
 }
 
-fn desugar_fun<'e>(fun: &'e syntax::Fun, renamer: &mut Renamer<'e>) -> Fun {
+fn desugar_fun<'e>(fun: &'e ast::Fun, renamer: &mut Renamer<'e>) -> Fun {
     Fun {
         fun_name: renamer.lookup(fun.fun_name.as_ref()),
         arg_name: renamer.lookup(fun.arg_name.as_ref()),
@@ -170,7 +170,7 @@ fn desugar_fun<'e>(fun: &'e syntax::Fun, renamer: &mut Renamer<'e>) -> Fun {
     }
 }
 
-impl Sugar for syntax::LetFun {
+impl Sugar for ast::LetFun {
     fn desugar<'e>(&'e self, renamer: &mut Renamer<'e>) -> Ir {
         let fun = self.fun.desugar(renamer);
         let expr = self.body.desugar(renamer);
@@ -187,7 +187,7 @@ impl Sugar for syntax::LetFun {
     }
 }
 
-impl Sugar for syntax::LetRec {
+impl Sugar for ast::LetRec {
     // See tests `mutual_recursion3` for an example of transform.
     // On a high level, we convert a set of mutually recursive functions into a single function of
     // two arguments, the first of which is a tag

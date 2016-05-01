@@ -16,6 +16,7 @@ impl Type {
 impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
+
         match *self {
             Int => f.write_str("int"),
             Bool => f.write_str("bool"),
@@ -26,5 +27,19 @@ impl fmt::Debug for Type {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_assoc() {
+        let foo = Type::arrow(Type::Int, Type::arrow(Type::Bool, Type::Int));
+        assert_eq!(format!("{:?}", foo), "int -> bool -> int");
+
+        let foo = Type::arrow(Type::arrow(Type::Int, Type::Bool), Type::Int);
+        assert_eq!(format!("{:?}", foo), "(int -> bool) -> int");
     }
 }

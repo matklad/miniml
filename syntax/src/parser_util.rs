@@ -1,6 +1,4 @@
-use Ident;
-use super::exprs::{Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun, LetFun, LetRec};
-use super::types::Type;
+use ast::{Ident, Type, Expr, ArithBinOp, ArithOp, CmpBinOp, CmpOp, If, Apply, Fun, LetFun, LetRec};
 
 pub fn arith_op(l: Expr, op: ArithOp, r: Expr) -> Expr {
     ArithBinOp {

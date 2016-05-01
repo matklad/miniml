@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashSet;
 use std::fmt;
 
-use syntax::{self, Ident, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, LetRec, Apply};
+use ast::{self, Ident, Expr, Literal, ArithBinOp, CmpBinOp, If, Fun, LetFun, LetRec, Apply};
 use context::TypeContext;
 
 pub type Result = ::std::result::Result<Type, TypeError>;
@@ -31,12 +31,12 @@ trait IntoType {
     fn as_type(&self) -> Type;
 }
 
-impl IntoType for syntax::Type {
+impl IntoType for ast::Type {
     fn as_type(&self) -> Type {
         match *self {
-            syntax::Type::Int => Int,
-            syntax::Type::Bool => Bool,
-            syntax::Type::Arrow(ref l, ref r) => Arrow(Rc::new(l.as_type()), Rc::new(r.as_type())),
+            ast::Type::Int => Int,
+            ast::Type::Bool => Bool,
+            ast::Type::Arrow(ref l, ref r) => Arrow(Rc::new(l.as_type()), Rc::new(r.as_type())),
         }
     }
 }
@@ -85,7 +85,7 @@ trait Typecheck {
 
 impl Typecheck for Expr {
     fn check<'c>(&'c self, ctx: &mut TypeContext<'c>) -> Result {
-        use syntax::Expr::*;
+        use ast::Expr::*;
         match *self {
             Var(ref ident) => {
                 ctx.lookup(ident)
@@ -200,7 +200,7 @@ impl Typecheck for Apply {
 
 #[cfg(test)]
 mod tests {
-    use syntax::Expr;
+    use ast::Expr;
     use super::*;
     use super::Type::*;
 
