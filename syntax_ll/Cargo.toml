@@ -1,0 +1,6 @@
+[package]
+name = "syntax_ll"
+version = "0.1.0"
+
+[dependencies]
+ast = { path = "../ast" }
