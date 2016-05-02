@@ -1,8 +1,8 @@
-extern crate syntax;
+extern crate syntax_ll;
 extern crate ast;
 
 use ast::Expr;
-use syntax::parse;
+use syntax_ll::parse;
 
 
 
@@ -14,7 +14,7 @@ fn assert_parses(expr: &str, ast: &str) {
 }
 
 fn you_shall_not_parse(expr: &str) {
-    assert!(parse(expr).is_err());
+    assert!(parse(expr).is_err(), "\n`{}` parsed?!", expr);
 }
 
 #[test]

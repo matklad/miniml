@@ -4,6 +4,7 @@ version = "0.1.0"
 dependencies = [
  "ast 0.1.0",
  "syntax 0.1.0",
+ "syntax_ll 0.1.0",
 ]
 
 [[package]]
@@ -181,6 +182,13 @@ dependencies = [
  "ast 0.1.0",
  "lalrpop 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lalrpop-util 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "syntax_ll"
+version = "0.1.0"
+dependencies = [
+ "ast 0.1.0",
 ]
 
 [[package]]

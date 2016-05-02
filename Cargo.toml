@@ -5,4 +5,5 @@ authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
 
 [dependencies]
 syntax = { path = "./syntax" }
+syntax_ll = { path = "./syntax_ll" }
 ast = { path = "./ast" }
